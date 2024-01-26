@@ -1,0 +1,31 @@
+https://www.99.co/singapore/rent?bathrooms=any&building_age=any&composite_floor_level=any&composite_furnishing=any&composite_views=any&diversity_friendly=false&features_and_amenities=any&has_floor_plan=false&isFilterUnapplied=false&main_category=all&map_bounds=1.316014%2C103.767589%2C1.414295%2C103.911731&page_num=1&page_size=35&path=%2Fsingapore%2Frent&period_of_availability=any&property_segments=residential&query_coords=1.3039947%2C103.8298507&query_ids=dtdistrict20&query_limit=radius&query_type=district&rental_type=all&rooms=any&show_cluster_preview=true&show_description=true&show_future_mrts=true&show_internal_linking=true&show_meta_description=true&show_nearby=true&zoom=13
+
+All Districts
+D01 - Boat Quay / Raffles Place / Marina
+D02 - Chinatown / Tanjong Pagar
+D03 - Alexandra / Commonwealth
+D04 - Harbourfront / Telok Blangah
+D05 - Buona Vista / West Coast / Clementi
+D06 - City Hall / Clarke Quay
+D07 - Beach Road / Bugis / Rochor
+D08 - Farrer Park / Serangoon Rd
+D09 - Orchard / River Valley
+D10 - Tanglin / Holland
+D11 - Newton / Novena
+D12 - Balestier / Toa Payoh
+D13 - Macpherson / Potong Pasir
+D14 - Eunos / Geylang / Paya Lebar
+D15 - East Coast / Marine Parade
+D16 - Bedok / Upper East Coast
+D17 - Changi Airport / Changi Village
+D18 - Pasir Ris / Tampines
+D19 - Hougang / Punggol / Sengkang
+D20 - Ang Mo Kio / Bishan / Thomson
+D21 - Clementi Park / Upper Bukit Timah
+D22 - Boon Lay / Jurong / Tuas
+D23 - Bukit Batok / Bukit Panjang / Choa Chu Kang
+D24 - Lim Chu Kang / Tengah
+D25 - Admiralty / Woodlands
+D26 - Mandai / Upper Thomson
+D27 - Sembawang / Yishun
+D28 - Seletar / Yio Chu Kang
