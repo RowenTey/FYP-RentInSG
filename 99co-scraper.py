@@ -300,15 +300,18 @@ class NinetyNineCoScraper:
             # Check if the CSV file exists
             file_exists = os.path.isfile(self.rental_prices_file)
             print(f"File exists: {file_exists}")
-            # Open the CSV file in append mode if it exists, otherwise in write mode
-            with open(self.rental_prices_file, 'a+' if file_exists else 'w', newline='') as file:
-                # Write the header only if the file is newly created
-                df.to_csv(file, index=False, header=not file_exists)
 
+            # Open the CSV file in append mode if it exists, otherwise in write mode
             if file_exists:
+                with open(self.rental_prices_file, 'a+', newline='') as file:
+                    # Write the header only if the file is newly created
+                    df.to_csv(file, index=False, header=True)
                 print(f'Rental prices appended to {self.rental_prices_file}')
             else:
+                with open(self.rental_prices_file, 'w', newline='') as file:
+                    df.to_csv(file, index=False, header=False)
                 print(f'Rental prices saved to {self.rental_prices_file}')
+
         except Exception as e:
             print(f'Error writing to CSV: {e}')
 
