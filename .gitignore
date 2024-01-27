@@ -23,6 +23,7 @@ vendor/
 # Ignore key files
 *.key
 *.pem
+*.env
 secrets/
 
 # Ignore venv
