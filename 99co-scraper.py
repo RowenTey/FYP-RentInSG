@@ -308,8 +308,7 @@ class NinetyNineCoScraper:
                     df.to_csv(file, index=False, header=True)
                 print(f'Rental prices appended to {self.rental_prices_file}')
             else:
-                with open(self.rental_prices_file, 'w', newline='') as file:
-                    df.to_csv(file, index=False, header=False)
+                df.to_csv(self.rental_prices_file, index=False, header=False)
                 print(f'Rental prices saved to {self.rental_prices_file}')
 
         except Exception as e:
