@@ -62,7 +62,7 @@ class NinetyNineCoScraper:
         self.key = key
         self.query = query
         self.captcha_counter = 0
-        self.rental_prices_file = f'./rental_prices/ninety_nine/{date.today()}.csv'
+        self.rental_prices_dir = f'./rental_prices/ninety_nine/'
         self.props = []
 
     def fetch_html(self, url, has_pages):
@@ -297,22 +297,29 @@ class NinetyNineCoScraper:
 
     def output_to_csv(self, df: pd.DataFrame) -> None:
         try:
+            # Check if the CSV directory exists, and create it if not
+            if not os.path.exists(self.rental_prices_dir):
+                os.makedirs(self.rental_prices_dir)
+                print(f'Directory created: {self.rental_prices_dir}')
+
+            output_path = os.path.join(self.rental_prices_dir, f'{date.today()}.csv')
             # Check if the CSV file exists
-            file_exists = os.path.isfile(self.rental_prices_file)
+            file_exists = os.path.isfile(output_path)
             print(f"File exists: {file_exists}")
 
             # Open the CSV file in append mode if it exists, otherwise in write mode
             if file_exists:
-                with open(self.rental_prices_file, 'a+', newline='') as file:
+                with open(output_path, 'a+', newline='') as file:
                     # Write the header only if the file is newly created
                     df.to_csv(file, index=False, header=True)
-                print(f'Rental prices appended to {self.rental_prices_file}')
+                print(f'Rental prices appended to {output_path}')
             else:
-                df.to_csv(self.rental_prices_file, index=False, header=False)
-                print(f'Rental prices saved to {self.rental_prices_file}')
+                df.to_csv(output_path, index=False, header=False)
+                print(f'Rental prices saved to {output_path}')
 
         except Exception as e:
             print(f'Error writing to CSV: {e}')
+
 
     def initial_fetch(self):
         soup = self.fetch_html(self.header + self.key + self.query, True)
