@@ -8,13 +8,13 @@ cd "$target_directory" || { echo "Failed to change to directory: $target_directo
 
 # Set log directory and file prefix
 log_directory="$target_directory/logs"
-log_prefix="cron-job"
+log_prefix="99co-scraper"
 
 # Create log directory if it doesn't exist
 mkdir -p "$log_directory"
 
 # Get the current date and time
-current_date=$(date +"%Y-%m-%d_%H-%M-%S")
+current_date=$(date +"%Y-%m-%d")
 
 # Set log file name with timestamp
 log_file="$log_directory/${log_prefix}_${current_date}.log"
