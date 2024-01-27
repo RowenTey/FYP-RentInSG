@@ -4,6 +4,7 @@ import re
 import cfscrape
 import random
 import requests
+import argparse
 import pandas as pd
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -298,6 +299,7 @@ class NinetyNineCoScraper:
         try:
             # Check if the CSV file exists
             file_exists = os.path.isfile(self.rental_prices_file)
+            print(f"File exists: {file_exists}")
             # Open the CSV file in append mode if it exists, otherwise in write mode
             with open(self.rental_prices_file, 'a+' if file_exists else 'w', newline='') as file:
                 # Write the header only if the file is newly created
@@ -322,18 +324,23 @@ class NinetyNineCoScraper:
         time.sleep(2)
         print('Job initiated with query on rental properties in Singapore.')
 
-    def run(self):
+    def run(self, debug):
         self.print_title()
         for district in self.DISTRICTS.keys():
-            self.scrape_rental_prices(district, False)
+            self.scrape_rental_prices(district, debug)
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--debug", action="store_true",
+                        help="Enable debug mode")
+    args = parser.parse_args()
+
     while True:
         try:
             start = time.time()
             ninetynine_co_scraper = NinetyNineCoScraper()
-            ninetynine_co_scraper.run()
+            ninetynine_co_scraper.run(debug=args.debug)
             print(f"Time taken: {time.time() - start} seconds")
             break
         except Exception:
