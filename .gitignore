@@ -31,3 +31,6 @@ venv/
 
 # Ignore rental prices
 rental_prices/
+
+# Ignore server logs
+logs/
