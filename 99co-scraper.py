@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import re
@@ -50,7 +51,7 @@ class NinetyNineCoScraper:
         "27": "Sembawang / Yishun",
         "28": "Seletar / Yio Chu Kang"
     }
-    COLUMNS = ['property_name', 'listing_id', 'district', 'price', 'bedroom', 'bathroom', 'dimensions', 'address', 'price/sqft', 'floor_level',
+    COLUMNS = ['property_name', 'listing_id', 'district', 'price', 'bedroom', 'bathroom', 'dimensions', 'address', 'latitude', 'longitude', 'price/sqft', 'floor_level',
                'furnishing', 'facing', 'built_year', 'tenure', 'property_type', 'url', 'facilities']
 
     def __init__(self,
@@ -188,6 +189,32 @@ class NinetyNineCoScraper:
             print(f"Error scraping address: {err}")
 
         try:
+            # Find the script tag by ID
+            script_tag = soup.find('script', {'id': '__REDUX_STORE__'})
+
+            pattern = re.compile(
+                r'"coordinates":\{"lng":([0-9.-]+),"lat":([0-9.-]+)\}')
+            match = pattern.search(script_tag.text.strip())
+            print(match.group())
+
+            if match:
+                # Extract the matched JSON string
+                json_string = "{" + match.group() + "}"
+
+                # Load the JSON content
+                json_data = json.loads(json_string)
+                print(json_data)
+
+                # Access lat and lng values
+                lat = json_data.get('coordinates', {}).get('lat')
+                lng = json_data.get('coordinates', {}).get('lng')
+
+                output['latitude'] = lat
+                output['longitude'] = lng
+        except Exception as err:
+            print(f"Error scraping coordinates: {err}")
+
+        try:
             # Extract all facilities
             facilities = soup.find_all('div', class_='_3atmT')
             res = []
@@ -302,7 +329,6 @@ class NinetyNineCoScraper:
 
             # Check if the CSV file exists
             file_exists = os.path.isfile(output_path)
-            print(f"File exists: {file_exists}")
 
             # Open the CSV file in append mode if it exists, otherwise in write mode
             with open(output_path, 'a+' if file_exists else 'w', newline='') as file:
