@@ -28,3 +28,6 @@ secrets/
 
 # Ignore venv
 venv/
+
+# Ignore rental prices
+rental_prices/
