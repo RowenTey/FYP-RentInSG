@@ -22,5 +22,5 @@ log_file="$log_directory/${log_prefix}_${current_date}.log"
 # Run the Python file and append output to the log file
 venv/bin/python 99co-scraper.py >> "$log_file" 2>&1
 
-# Optionally, remove old log files that are more than 7 days old
+# Remove old log files that are more than 7 days old
 find "$log_directory" -name "${log_prefix}_*.log" -mtime +7 -exec rm {} \;

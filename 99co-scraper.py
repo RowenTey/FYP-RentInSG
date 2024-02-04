@@ -1,26 +1,12 @@
 import json
-import os
 import time
 import re
-import cfscrape
-import random
-import requests
 import argparse
 import pandas as pd
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-from datetime import date
-from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
+from scraper import AbstractPropertyScraper
 
 
-def to_snake_case(input_string):
-    # Replace spaces with underscores and convert to lowercase
-    snake_case_string = input_string.replace(' ', '_').lower()
-    return snake_case_string
-
-
-class NinetyNineCoScraper:
+class NinetyNineCoScraper(AbstractPropertyScraper):
     DISTRICTS = {
         "01": "Boat Quay / Raffles Place / Marina",
         "02": "Chinatown / Tanjong Pagar",
@@ -51,88 +37,32 @@ class NinetyNineCoScraper:
         "27": "Sembawang / Yishun",
         "28": "Seletar / Yio Chu Kang"
     }
-    COLUMNS = ['property_name', 'listing_id', 'district', 'price', 'bedroom', 'bathroom', 'dimensions', 'address', 'latitude', 'longitude', 'price/sqft', 'floor_level',
-               'furnishing', 'facing', 'built_year', 'tenure', 'property_type', 'url', 'facilities']
 
     def __init__(self,
                  header='https://www.99.co',
                  key='/singapore/rent',
                  query='?query_ids=dtdistrict{district}&query_type=district&rental_type=all',
                  ):
-        self.header = header
-        self.key = key
-        self.query = query
-        self.captcha_counter = 0
+        super().__init__(header, key, query)
+        self.platform_name = '99.co'
+        self.pages_to_fetch = 10
+        self.properties_per_page = 100
+        self.pagination_element = "ul.SearchPagination-links"
         self.rental_prices_dir = f'./rental_prices/ninety_nine/'
-        self.props = []
-
-    def fetch_html(self, url, has_pages):
-        try:
-            for trial in range(1, 21):
-                print('Loading ' + url)
-                ua = UserAgent()
-                headers = {'User-Agent': ua.random}
-
-                session = requests.Session()
-                retry = Retry(connect=3, backoff_factor=0.5)
-                adapter = HTTPAdapter(max_retries=retry)
-                session.mount('http://', adapter)
-                session.mount('https://', adapter)
-                session.headers.update(headers)
-
-                scraper = cfscrape.create_scraper(sess=session)
-                # print(scraper.get("http://httpbin.org/ip").json())
-                # print(headers)
-                time.sleep(random.randint(1, 3))
-                html_content = scraper.get(url).text
-                print("=" * 50 + "\n")
-
-                soup = BeautifulSoup(html_content, 'html.parser')
-
-                if "captcha" in soup.text:
-                    print('CAPTCHA -> Retrying ' +
-                          '(' + str(trial) + '/20)...')
-                    time.sleep(0.1)
-                    self.captcha_counter += 1
-
-                    # Wait 30s every 10 tries
-                    if trial % 10 == 0:
-                        print('Connection reset, retrying in 30 secs...')
-                        time.sleep(30)
-                    continue
-                elif has_pages and not soup.select_one("ul.SearchPagination-links"):
-                    print('No pages -> Retrying ' +
-                          '(' + str(trial) + '/20)...')
-                    time.sleep(0.1)
-
-                    # Wait 30s every 10 tries
-                    if trial % 10 == 0:
-                        print('Connection reset, retrying in 30 secs...')
-                        time.sleep(30)
-                    continue
-                elif "No Results" in soup.text:
-                    print('Invalid URL: {url}, exiting...')
-                    exit(1)
-
-                return soup
-            return None
-        except Exception as err:
-            print(f"Error fetching HTML: {err}")
-            return None
 
     def pagination(self, soup):
-        pagination = soup.select_one("ul.SearchPagination-links")
+        pagination = soup.select_one(self.pagination_element)
         try:
             # only 1 page
-            if pagination.find_all("li",  class_="next disabled"):
+            if pagination.find_all("li", class_="next disabled"):
                 pages = int(pagination.find_all("a")[1].text)
             # grab the page number before the arrow
             else:
                 pages = int(pagination.find_all("a")[-2].text)
         except AttributeError:
+            # TODO: check if this is the correct way to handle this
             if soup.find("h2", class_="name").text.split(' ')[2] == '0':
                 print('No property found. Scraping stopped.')
-                exit(0)
             exit(1)
         return pages
 
@@ -195,7 +125,6 @@ class NinetyNineCoScraper:
             pattern = re.compile(
                 r'"coordinates":\{"lng":([0-9.-]+),"lat":([0-9.-]+)\}')
             match = pattern.search(script_tag.text.strip())
-            print(match.group())
 
             if match:
                 # Extract the matched JSON string
@@ -203,7 +132,6 @@ class NinetyNineCoScraper:
 
                 # Load the JSON content
                 json_data = json.loads(json_string)
-                print(json_data)
 
                 # Access lat and lng values
                 lat = json_data.get('coordinates', {}).get('lat')
@@ -213,6 +141,19 @@ class NinetyNineCoScraper:
                 output['longitude'] = lng
         except Exception as err:
             print(f"Error scraping coordinates: {err}")
+
+        try:
+            # Extract the nearest MRT station and distance
+            mrt_info = soup.find(
+                'p', class_='_2sIc2 _2rhE- _1c-pJ').text.strip()
+            # e.g: 3 mins (175 m) from Shenton Way MRT
+            distance, output['nearest_mrt'] = mrt_info.split(' from ')
+
+            distance_match = re.search(r'\((\d+)\s*m\)', distance)
+            output['distance_to_nearest_mrt'] = distance_match.group(
+                1) if distance_match else None
+        except Exception as err:
+            print(f"Error scraping nearest MRT: {err}")
 
         try:
             # Extract all facilities
@@ -239,22 +180,17 @@ class NinetyNineCoScraper:
             Tenure: 99-year leasehold
             Property type: Apartment Whole Unit
             """
+            not_included = set(['Last updated'])
             for row in property_details_rows:
                 columns = row.find_all('td', class_='NomDX')
                 values = row.find_all('td', class_='XCAFU')
-                not_included = set(['Last updated'])
 
                 for col, val in zip(columns, values):
                     label = col.get_text(strip=True)
                     if label in not_included:
                         continue
 
-                    if label == 'Property type':
-                        output[to_snake_case(
-                            label)] = val.get_text()
-                        continue
-
-                    output[to_snake_case(
+                    output[NinetyNineCoScraper.to_snake_case(
                         label)] = val.get_text(strip=True)
         except Exception as err:
             print(f"Error scraping property details: {err}")
@@ -274,10 +210,6 @@ class NinetyNineCoScraper:
         for page in range(2, pages + 1):
             if debug:
                 continue
-            if self.captcha_counter == 19:
-                with open('current_page.txt', 'w') as file:
-                    file.write(str(page))
-                break
 
             soup = self.fetch_html(self.header + self.key + '/?page_num=' +
                                    str(page) + self.query, True)
@@ -289,14 +221,14 @@ class NinetyNineCoScraper:
 
         # Scrape rental info for each property
         rental_infos = []
-        print('\nA total of ' + str(min(100, len(self.props))) +
+        print('\nA total of ' + str(min(self.properties_per_page, len(self.props))) +
               ' properties will be scraped.\n')
 
         for i, prop in enumerate(self.props):
             if debug and i == 6:
                 break
-            # only scrape 100/district
-            if i == 101:
+            # only scrape self.properties_per_page per district
+            if i == self.properties_per_page + 1:
                 break
             print(f"Fetching {prop[0]}...")
 
@@ -311,7 +243,8 @@ class NinetyNineCoScraper:
             rental_info["listing_id"] = url.split('-')[-1]
             rental_info["url"] = url
             rental_infos.append(rental_info)
-            print(str(i + 1) + '/' + str(min(100, len(self.props))) + ' done!')
+            print(str(i + 1) + '/' +
+                  str(min(self.properties_per_page, len(self.props))) + ' done!')
 
         df = pd.DataFrame(rental_infos)
         df = df[self.COLUMNS]
@@ -319,46 +252,11 @@ class NinetyNineCoScraper:
         self.output_to_csv(df)
 
         # reset for next run
+        self.refresh_variables()
+
+    def refresh_variables(self):
         self.props = []
         self.query = '?query_ids=dtdistrict{district}&query_type=district&rental_type=all'
-
-    def output_to_csv(self, df: pd.DataFrame) -> None:
-        try:
-            output_path = os.path.join(
-                self.rental_prices_dir, f'{date.today()}.csv')
-
-            # Check if the CSV file exists
-            file_exists = os.path.isfile(output_path)
-
-            # Open the CSV file in append mode if it exists, otherwise in write mode
-            with open(output_path, 'a+' if file_exists else 'w', newline='') as file:
-                # Write the header only if the file is newly created
-                df.to_csv(file, index=False, header=not file_exists)
-
-            if file_exists:
-                print(f'Rental prices appended to {output_path}')
-            else:
-                print(f'Rental prices saved to {output_path}')
-
-        except Exception as e:
-            print(f'Error writing to CSV: {e}')
-
-    def initial_fetch(self):
-        soup = self.fetch_html(self.header + self.key + self.query, True)
-        pages = min(10, self.pagination(soup))
-        print(str(pages) + ' page will be scraped.\n')
-        return soup, pages
-
-    def print_title(self):
-        print(
-            '\n===================================================\n99co Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n')
-        time.sleep(2)
-        print('Job initiated with query on rental properties in Singapore.')
-
-    def run(self, debug):
-        self.print_title()
-        for district in self.DISTRICTS.keys():
-            self.scrape_rental_prices(district, debug)
 
 
 if __name__ == "__main__":
@@ -374,5 +272,5 @@ if __name__ == "__main__":
             ninetynine_co_scraper.run(debug=args.debug)
             print(f"Time taken: {time.time() - start} seconds")
             break
-        except Exception:
-            print('Error scraping, retrying...')
+        except Exception as err:
+            print(f'Error scraping: {err}, retrying...')
