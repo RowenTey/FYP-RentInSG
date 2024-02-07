@@ -4,6 +4,7 @@
 
 # Ignore temporary files
 *~
+__pycache__/
 
 # Ignore IDE and editor files
 .vscode/
