@@ -10,6 +10,7 @@ dotenv.load_dotenv()
 
 HASH_FILE = 'uploaded_hashes.json'
 MAX_AGE_DAYS = 30  # Adjust as needed
+DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 
 def load_uploaded_hashes():
@@ -55,12 +56,13 @@ def upload_files_to_s3(local_directory, bucket_name):
                       )
 
     # Load previously uploaded hashes with timestamps
-    uploaded_hashes = load_uploaded_hashes()
+    uploaded_hashes: list = load_uploaded_hashes()
 
     # Prune old entries based on timestamp
     current_time = datetime.now()
-    updated_hashes = [entry for entry in uploaded_hashes
-                      if current_time - entry['timestamp'] < timedelta(days=MAX_AGE_DAYS)]
+    updated_hashes: list = [entry for entry in uploaded_hashes
+                            if current_time - datetime.strptime(entry['timestamp'], DATETIME_FORMAT) < timedelta(days=MAX_AGE_DAYS)]
+    updated_hashes_set: set = set(entry['hash'] for entry in updated_hashes)
 
     # List all files in the local directory
     for root, _, files in os.walk(local_directory):
@@ -75,19 +77,25 @@ def upload_files_to_s3(local_directory, bucket_name):
             file_hash = calculate_file_hash(local_file_path)
 
             # Check if the file has been uploaded (based on hash)
-            if file_hash not in {entry['hash'] for entry in updated_hashes}:
+            if file_hash not in updated_hashes_set:
                 # Convert CSV to Parquet
                 parquet_file_path = local_file_path.replace('.csv', '.parquet')
                 convert_csv_to_parquet(local_file_path, parquet_file_path)
 
                 # Upload the Parquet file to S3
-                # s3.upload_file(parquet_file_path, bucket_name, s3_file_path)
+                s3_file_path = s3_file_path.replace('.csv', '.parquet')
+                s3.upload_file(parquet_file_path, bucket_name, s3_file_path)
                 print(
                     f'File uploaded: {parquet_file_path} to s3://{bucket_name}/{s3_file_path}')
 
+                # Delete the temp local Parquet file
+                os.remove(parquet_file_path)
+
                 # Add the hash with timestamp to the list of uploaded hashes
                 updated_hashes.append(
-                    {'hash': file_hash, 'timestamp': current_time})
+                    {'hash': file_hash, 'timestamp': current_time.strftime(DATETIME_FORMAT)})
+                updated_hashes_set.add(file_hash)
+                break
             else:
                 print(
                     f'Skipping upload for {local_file_path} (already uploaded)')
