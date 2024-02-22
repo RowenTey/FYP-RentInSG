@@ -65,6 +65,7 @@ def upload_files_to_s3(local_directory, bucket_name):
     # List all files in the local directory
     for root, _, files in os.walk(local_directory):
         for file in files:
+            print(file)
             local_file_path = os.path.join(root, file)
             # Enforcing the format rental_prices/ninety_nine/*.csv
             s3_file_path = os.path.join(
@@ -80,7 +81,7 @@ def upload_files_to_s3(local_directory, bucket_name):
                 convert_csv_to_parquet(local_file_path, parquet_file_path)
 
                 # Upload the Parquet file to S3
-                s3.upload_file(parquet_file_path, bucket_name, s3_file_path)
+                # s3.upload_file(parquet_file_path, bucket_name, s3_file_path)
                 print(
                     f'File uploaded: {parquet_file_path} to s3://{bucket_name}/{s3_file_path}')
 
@@ -97,7 +98,7 @@ def upload_files_to_s3(local_directory, bucket_name):
 
 if __name__ == "__main__":
     # Specify the local directory containing CSV files
-    local_directory = './rental_prices/ninety_nine'
+    local_directory = '../rental_prices/ninety_nine'
 
     # Specify the S3 bucket name
     bucket_name = 'fyp-2024-bucket'
