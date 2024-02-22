@@ -9,7 +9,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from scrapers.scraper import AbstractPropertyScraper
+from scraper import AbstractPropertyScraper
 
 # suppress warnings
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)

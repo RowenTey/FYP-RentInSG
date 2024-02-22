@@ -3,7 +3,7 @@ import time
 import re
 import argparse
 import pandas as pd
-from scrapers.scraper import AbstractPropertyScraper
+from scraper import AbstractPropertyScraper
 
 
 class NinetyNineCoScraper(AbstractPropertyScraper):
