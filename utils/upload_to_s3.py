@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 dotenv.load_dotenv()
 
-HASH_FILE = 'uploaded_hashes.json'
+HASH_FILE = '../logs/s3_uploader/uploaded_hashes.json'
 MAX_AGE_DAYS = 30  # Adjust as needed
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
@@ -83,7 +83,7 @@ def upload_files_to_s3(local_directory, bucket_name):
 
                 # Upload the Parquet file to S3
                 s3_file_path = s3_file_path.replace('.csv', '.parquet')
-                # s3.upload_file(parquet_file_path, bucket_name, s3_file_path)
+                s3.upload_file(parquet_file_path, bucket_name, s3_file_path)
                 print(
                     f'File uploaded: {parquet_file_path} to s3://{bucket_name}/{s3_file_path}')
 
@@ -94,7 +94,6 @@ def upload_files_to_s3(local_directory, bucket_name):
                 updated_hashes.append(
                     {'hash': file_hash, 'timestamp': current_time.strftime(DATETIME_FORMAT)})
                 updated_hashes_set.add(file_hash)
-                break
             else:
                 print(
                     f'Skipping upload for {local_file_path} (already uploaded)')

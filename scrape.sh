@@ -7,7 +7,7 @@ target_directory="/home/ec2-user/FYP-RentInSG"
 cd "$target_directory" || { echo "Failed to change to directory: $target_directory"; exit 1; }
 
 # Set log directory and file prefix
-log_directory="$target_directory/logs"
+log_directory="$target_directory/logs/scraper"
 log_prefix="99co-scraper"
 
 # Create log directory if it doesn't exist
