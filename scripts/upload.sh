@@ -24,6 +24,3 @@ venv/bin/python utils/upload_to_s3.py >> "$log_file" 2>&1
 
 # Remove old log files that are more than 7 days old
 find "$log_directory" -name "${log_prefix}_*.log" -mtime +7 -exec rm {} \;
-
-# Prune old CSVs that are more than 7 days old
-find "$target_directory/rental_prices/ninety_nine" -name "*.csv" -mtime +7 -exec rm {} \;
