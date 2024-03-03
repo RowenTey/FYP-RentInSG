@@ -123,9 +123,16 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
 
     # Prune old entries based on timestamp
     current_time = datetime.now()
-    updated_hashes: list = [entry for entry in uploaded_hashes
-                            if current_time - datetime.strptime(entry['timestamp'], DATETIME_FORMAT) < timedelta(days=MAX_AGE_DAYS)]
+    updated_hashes, outdated_hashes = [], []
+    for entry in uploaded_hashes:
+        timestamp = datetime.strptime(entry['timestamp'], DATETIME_FORMAT)
+        if current_time - timestamp < timedelta(days=MAX_AGE_DAYS):
+            updated_hashes.append(entry)
+        else:
+            outdated_hashes.append(entry)
+
     updated_hashes_set: set = set(entry['hash'] for entry in updated_hashes)
+    outdated_hashes_set: set = set(entry['hash'] for entry in outdated_hashes)
 
     # List all files in the local directory
     for root, _, files in os.walk(local_directory):
@@ -144,9 +151,13 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
 
             # Check if the file has been uploaded (based on hash)
             if file_hash in updated_hashes_set:
-                os.remove(local_file_path)
                 print(
                     f'Skipping upload for {local_file_path} (already uploaded)')
+                continue
+            elif file_hash in outdated_hashes_set:
+                print(
+                    "File is outdated, removing from local directory and skipping upload")
+                os.remove(local_file_path)
                 continue
 
             # Upload the Parquet file to S3
