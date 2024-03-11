@@ -270,7 +270,7 @@ if __name__ == "__main__":
             start = time.time()
             ninetynine_co_scraper = NinetyNineCoScraper()
             ninetynine_co_scraper.run(debug=args.debug)
-            print(f"Time taken: {time.time() - start} seconds")
+            print(f"\nTime taken: {time.time() - start} seconds")
             break
         except Exception as err:
             print(f'Error scraping: {err}, retrying...')
