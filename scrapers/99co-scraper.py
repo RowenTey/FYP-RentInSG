@@ -45,8 +45,8 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                  ):
         super().__init__(header, key, query)
         self.platform_name = '99.co'
-        self.pages_to_fetch = 10
-        self.properties_per_page = 100
+        self.pages_to_fetch = 20
+        self.properties_per_page = 200
         self.pagination_element = "ul.SearchPagination-links"
         self.rental_prices_dir = f'./rental_prices/ninety_nine/'
 
