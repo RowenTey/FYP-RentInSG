@@ -175,12 +175,12 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
 
 
 if __name__ == "__main__":
-    HASH_FILE_PATH = '../logs/s3_uploader/uploaded_hashes.json'
+    HASH_FILE_PATH = './logs/s3_uploader/uploaded_hashes.json'
     MAX_AGE_DAYS = 10  # Adjust as needed
     DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
     # Specify the local directory containing CSV files
-    local_directory = '../rental_prices/ninety_nine'
+    local_directory = './rental_prices/ninety_nine'
 
     # Specify the S3 bucket name
     bucket_name = os.getenv('S3_BUCKET')
