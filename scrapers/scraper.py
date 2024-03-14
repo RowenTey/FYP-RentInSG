@@ -1,10 +1,10 @@
-from datetime import date
 import os
 import cfscrape
 import random
 import requests
 import time
 import pandas as pd
+from datetime import date
 from abc import ABC, abstractmethod
 from fake_useragent import UserAgent
 from requests.adapters import HTTPAdapter
@@ -13,6 +13,36 @@ from bs4 import BeautifulSoup
 
 
 class AbstractPropertyScraper(ABC):
+    """
+    Abstract base class for property scrapers.
+
+    Attributes:
+        DISTRICTS (dict): A dictionary mapping district codes to district names.
+        COLUMNS (list): A list of column names for the scraped data.
+        header (str): The header of the URL to scrape.
+        key (str): The key of the URL to scrape.
+        query (str): The query of the URL to scrape.
+        platform_name (str): The name of the platform being scraped.
+        properties_per_page (int): The number of properties to scrape per page.
+        pages_to_fetch (int): The number of pages to fetch.
+        pagination_element (str): The CSS selector for the pagination element.
+        rental_price_dir (str): The directory to save the rental prices.
+        props (list): A list to store the scraped properties.
+
+    Methods:
+        fetch_html(url: str, has_pages: bool) -> BeautifulSoup: Fetches the HTML content of a URL.
+        pagination(soup: BeautifulSoup) -> int: Extracts the number of pages from the pagination element.
+        link_scraper(soup: BeautifulSoup) -> List[str]: Scrapes the property links from the HTML content.
+        get_prop_info(soup: BeautifulSoup) -> Dict[str, Any]: Extracts the property information from the HTML content.
+        scrape_rental_prices(district: str, debug: bool) -> None: Scrapes rental prices for a specific district.
+        output_to_csv(df: pd.DataFrame) -> None: Outputs the scraped data to a CSV file.
+        initial_fetch() -> Tuple[BeautifulSoup, int]: Fetches the initial HTML content and determines the number of pages to scrape.
+        print_title() -> None: Prints the title of the scraper.
+        run(debug: bool) -> None: Runs the scraper for all districts.
+        to_snake_case(input_string: str) -> str: Converts a string to snake case.
+
+    """
+
     DISTRICTS = {
         "D01": "Boat Quay / Raffles Place / Marina",
         "D02": "Chinatown / Tanjong Pagar",
@@ -43,10 +73,21 @@ class AbstractPropertyScraper(ABC):
         "D27": "Sembawang / Yishun",
         "D28": "Seletar / Yio Chu Kang"
     }
-    COLUMNS = ['property_name', 'listing_id', 'district', 'price', 'bedroom', 'bathroom', 'dimensions', 'address', 'latitude', 'longitude', 'price/sqft', 'floor_level',
-               'furnishing', 'facing', 'built_year', 'tenure', 'property_type', 'nearest_mrt', 'distance_to_nearest_mrt', 'url', 'facilities']
+    COLUMNS = [
+        'property_name', 'listing_id', 'district', 'price', 'bedroom', 'bathroom', 'dimensions', 'address', 'latitude', 'longitude', 'price/sqft', 'floor_level',
+        'furnishing', 'facing', 'built_year', 'tenure', 'property_type', 'nearest_mrt', 'distance_to_nearest_mrt', 'url', 'facilities'
+    ]
 
-    def __init__(self, header, key, query):
+    def __init__(self, header: str, key: str, query: str):
+        """
+        Initializes an AbstractPropertyScraper object.
+
+        Args:
+            header (str): The header of the URL to scrape.
+            key (str): The key of the URL to scrape.
+            query (str): The query of the URL to scrape.
+
+        """
         self.header = header
         self.key = key
         self.query = query
@@ -57,7 +98,18 @@ class AbstractPropertyScraper(ABC):
         self.rental_price_dir = 'rental_prices/'
         self.props = []
 
-    def fetch_html(self, url, has_pages):
+    def fetch_html(self, url: str, has_pages: bool) -> BeautifulSoup:
+        """
+        Fetches the HTML content of a URL.
+
+        Args:
+            url (str): The URL to fetch.
+            has_pages (bool): Indicates whether the URL has multiple pages.
+
+        Returns:
+            BeautifulSoup: The parsed HTML content.
+
+        """
         try:
             for trial in range(1, 21):
                 print('Loading ' + url)
@@ -113,21 +165,66 @@ class AbstractPropertyScraper(ABC):
 
     @abstractmethod
     def pagination(self, soup):
+        """
+        Extracts the number of pages from the pagination element.
+
+        Args:
+            soup (BeautifulSoup): The parsed HTML content.
+
+        Returns:
+            int: The number of pages.
+
+        """
         pass
 
     @abstractmethod
     def link_scraper(self, soup):
+        """
+        Scrapes the property links from the HTML content.
+
+        Args:
+            soup (BeautifulSoup): The parsed HTML content.
+
+        Returns:
+            List[str]: A list of property links.
+
+        """
         pass
 
     @abstractmethod
     def get_prop_info(self, soup):
+        """
+        Extracts the property information from the HTML content.
+
+        Args:
+            soup (BeautifulSoup): The parsed HTML content.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the property information.
+
+        """
         pass
 
     @abstractmethod
     def scrape_rental_prices(self, district, debug):
+        """
+        Scrapes rental prices for a specific district.
+
+        Args:
+            district (str): The district code.
+            debug (bool): Indicates whether to print debug information.
+
+        """
         pass
 
     def output_to_csv(self, df: pd.DataFrame) -> None:
+        """
+        Outputs the scraped data to a CSV file.
+
+        Args:
+            df (pd.DataFrame): The DataFrame containing the scraped data.
+
+        """
         try:
             output_path = os.path.join(
                 self.rental_prices_dir, f'{date.today()}.csv')
@@ -147,25 +244,50 @@ class AbstractPropertyScraper(ABC):
         except Exception as e:
             print(f'Error writing to CSV: {e}')
 
-    def initial_fetch(self):
+    def initial_fetch(self) -> tuple[BeautifulSoup, int]:
+        """
+        Fetches the initial HTML content and determines the number of pages to scrape.
+
+        Returns:
+            Tuple[BeautifulSoup, int]: The parsed HTML content and the number of pages.
+
+        """
         soup = self.fetch_html(self.header + self.key + self.query, True)
         pages = min(self.pages_to_fetch, self.pagination(soup))
         print(str(pages) + ' page will be scraped.\n')
         return soup, pages
 
     def print_title(self):
+        """
+        Prints the title of the scraper.
+
+        """
         print(
             f'\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n')
-        time.sleep(2)
         print('Job initiated with query on rental properties in Singapore.')
 
     def run(self, debug):
+        """
+        Runs the scraper for all districts.
+
+        Args:
+            debug (bool): Indicates whether to print debug information.
+
+        """
         self.print_title()
         for district in self.DISTRICTS.keys():
             self.scrape_rental_prices(district, debug)
 
     @staticmethod
-    def to_snake_case(input_string):
-        # Replace spaces with underscores and convert to lowercase
-        snake_case_string = input_string.replace(' ', '_').lower()
-        return snake_case_string
+    def to_snake_case(input_string: str) -> str:
+        """
+        Converts a string to snake case.
+
+        Args:
+            input_string (str): The input string.
+
+        Returns:
+            str: The string converted to snake case.
+
+        """
+        return input_string.replace(' ', '_').lower()
