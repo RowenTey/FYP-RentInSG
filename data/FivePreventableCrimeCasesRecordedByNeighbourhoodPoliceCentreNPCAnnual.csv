@@ -1,0 +1,606 @@
+year,level_1,value
+2011,Central Police Division - Total,373
+2011,Central Police Division - Bukit Merah East NPC,124
+2011,Central Police Division - Marina Bay NPC,125
+2011,Central Police Division - Rochor NPC,124
+2011,Central Police Division - Unknown NPC,0
+2011,Clementi Police Division - Total,380
+2011,Clementi Police Division - Bukit Merah West NPC,135
+2011,Clementi Police Division - Clementi NPC,73
+2011,Clementi Police Division - Jurong East NPC,83
+2011,Clementi Police Division - Queenstown NPC,89
+2011,Clementi Police Division - Unknown NPC,0
+2011,Tanglin Police Division - Total,423
+2011,Tanglin Police Division - Bishan NPC,67
+2011,Tanglin Police Division - Bukit Timah NPC,32
+2011,Tanglin Police Division - Kampong Java NPC,52
+2011,Tanglin Police Division - Orchard NPC,156
+2011,Tanglin Police Division - Toa Payoh NPC,116
+2011,Tanglin Police Division - Unknown NPC,0
+2011,Ang Mo Kio Police Division - Total,625
+2011,Ang Mo Kio Police Division - Ang Mo Kio North NPC,74
+2011,Ang Mo Kio Police Division - Ang Mo Kio South NPC,59
+2011,Ang Mo Kio Police Division - Hougang NPC,128
+2011,Ang Mo Kio Police Division - Punggol NPC,na
+2011,Ang Mo Kio Police Division - Sembawang NPC,39
+2011,Ang Mo Kio Police Division - Sengkang NPC,115
+2011,Ang Mo Kio Police Division - Serangoon NPC,72
+2011,Ang Mo Kio Police Division - Yishun North NPC,91
+2011,Ang Mo Kio Police Division - Yishun South NPC,47
+2011,Ang Mo Kio Police Division - Unknown NPC,0
+2011,Bedok Police Division - Total,830
+2011,Bedok Police Division - Bedok NPC,199
+2011,Bedok Police Division - Changi NPC,76
+2011,Bedok Police Division - Geylang NPC,260
+2011,Bedok Police Division - Marine Parade NPC,77
+2011,Bedok Police Division - Pasir Ris NPC,84
+2011,Bedok Police Division - Tampines NPC,134
+2011,Bedok Police Division - Unknown NPC,0
+2011,Jurong Police Division - Total,799
+2011,Jurong Police Division - Bukit Batok NPC,114
+2011,Jurong Police Division - Bukit Panjang NPC,55
+2011,Jurong Police Division - Choa Chu Kang NPC,120
+2011,Jurong Police Division - Jurong West NPC,129
+2011,Jurong Police Division - Nanyang NPC,140
+2011,Jurong Police Division - Woodlands NPC,241
+2011,Jurong Police Division - Woodlands East NPC,na
+2011,Jurong Police Division - Woodlands West NPC,na
+2011,Jurong Police Division - Unknown NPC,0
+2011,Woodlands Police Division - Total,na
+2011,Woodlands Police Division - Woodlands East NPC,na
+2011,Woodlands Police Division - Woodlands West NPC,na
+2011,Woodlands Police Division - Yishun North NPC,na
+2011,Woodlands Police Division - Yishun South NPC,na
+2011,Woodlands Police Division - Sembawang NPC,na
+2011,Woodlands Police Division - Checkpoint,na
+2011,Woodlands Police Division - Unknown NPC,na
+2012,Central Police Division - Total,337
+2012,Central Police Division - Bukit Merah East NPC,84
+2012,Central Police Division - Marina Bay NPC,106
+2012,Central Police Division - Rochor NPC,147
+2012,Central Police Division - Unknown NPC,0
+2012,Clementi Police Division - Total,346
+2012,Clementi Police Division - Bukit Merah West NPC,105
+2012,Clementi Police Division - Clementi NPC,81
+2012,Clementi Police Division - Jurong East NPC,67
+2012,Clementi Police Division - Queenstown NPC,93
+2012,Clementi Police Division - Unknown NPC,0
+2012,Tanglin Police Division - Total,406
+2012,Tanglin Police Division - Bishan NPC,43
+2012,Tanglin Police Division - Bukit Timah NPC,48
+2012,Tanglin Police Division - Kampong Java NPC,65
+2012,Tanglin Police Division - Orchard NPC,162
+2012,Tanglin Police Division - Toa Payoh NPC,88
+2012,Tanglin Police Division - Unknown NPC,0
+2012,Ang Mo Kio Police Division - Total,580
+2012,Ang Mo Kio Police Division - Ang Mo Kio North NPC,61
+2012,Ang Mo Kio Police Division - Ang Mo Kio South NPC,71
+2012,Ang Mo Kio Police Division - Hougang NPC,119
+2012,Ang Mo Kio Police Division - Punggol NPC,na
+2012,Ang Mo Kio Police Division - Sembawang NPC,57
+2012,Ang Mo Kio Police Division - Sengkang NPC,87
+2012,Ang Mo Kio Police Division - Serangoon NPC,66
+2012,Ang Mo Kio Police Division - Yishun North NPC,72
+2012,Ang Mo Kio Police Division - Yishun South NPC,47
+2012,Ang Mo Kio Police Division - Unknown NPC,0
+2012,Bedok Police Division - Total,764
+2012,Bedok Police Division - Bedok NPC,218
+2012,Bedok Police Division - Changi NPC,59
+2012,Bedok Police Division - Geylang NPC,273
+2012,Bedok Police Division - Marine Parade NPC,52
+2012,Bedok Police Division - Pasir Ris NPC,64
+2012,Bedok Police Division - Tampines NPC,98
+2012,Bedok Police Division - Unknown NPC,0
+2012,Jurong Police Division - Total,664
+2012,Jurong Police Division - Bukit Batok NPC,67
+2012,Jurong Police Division - Bukit Panjang NPC,56
+2012,Jurong Police Division - Choa Chu Kang NPC,82
+2012,Jurong Police Division - Jurong West NPC,130
+2012,Jurong Police Division - Nanyang NPC,97
+2012,Jurong Police Division - Woodlands NPC,na
+2012,Jurong Police Division - Woodlands East NPC,114
+2012,Jurong Police Division - Woodlands West NPC,118
+2012,Jurong Police Division - Unknown NPC,0
+2012,Woodlands Police Division - Total,na
+2012,Woodlands Police Division - Woodlands East NPC,na
+2012,Woodlands Police Division - Woodlands West NPC,na
+2012,Woodlands Police Division - Yishun North NPC,na
+2012,Woodlands Police Division - Yishun South NPC,na
+2012,Woodlands Police Division - Sembawang NPC,na
+2012,Woodlands Police Division - Checkpoint,na
+2012,Woodlands Police Division - Unknown NPC,na
+2013,Central Police Division - Total,333
+2013,Central Police Division - Bukit Merah East NPC,95
+2013,Central Police Division - Marina Bay NPC,92
+2013,Central Police Division - Rochor NPC,146
+2013,Central Police Division - Unknown NPC,0
+2013,Clementi Police Division - Total,299
+2013,Clementi Police Division - Bukit Merah West NPC,82
+2013,Clementi Police Division - Clementi NPC,60
+2013,Clementi Police Division - Jurong East NPC,73
+2013,Clementi Police Division - Queenstown NPC,84
+2013,Clementi Police Division - Unknown NPC,0
+2013,Tanglin Police Division - Total,370
+2013,Tanglin Police Division - Bishan NPC,57
+2013,Tanglin Police Division - Bukit Timah NPC,38
+2013,Tanglin Police Division - Kampong Java NPC,63
+2013,Tanglin Police Division - Orchard NPC,135
+2013,Tanglin Police Division - Toa Payoh NPC,77
+2013,Tanglin Police Division - Unknown NPC,0
+2013,Ang Mo Kio Police Division - Total,403
+2013,Ang Mo Kio Police Division - Ang Mo Kio North NPC,42
+2013,Ang Mo Kio Police Division - Ang Mo Kio South NPC,35
+2013,Ang Mo Kio Police Division - Hougang NPC,84
+2013,Ang Mo Kio Police Division - Punggol NPC,20
+2013,Ang Mo Kio Police Division - Sembawang NPC,31
+2013,Ang Mo Kio Police Division - Sengkang NPC,54
+2013,Ang Mo Kio Police Division - Serangoon NPC,35
+2013,Ang Mo Kio Police Division - Yishun North NPC,74
+2013,Ang Mo Kio Police Division - Yishun South NPC,28
+2013,Ang Mo Kio Police Division - Unknown NPC,0
+2013,Bedok Police Division - Total,695
+2013,Bedok Police Division - Bedok NPC,173
+2013,Bedok Police Division - Changi NPC,68
+2013,Bedok Police Division - Geylang NPC,234
+2013,Bedok Police Division - Marine Parade NPC,62
+2013,Bedok Police Division - Pasir Ris NPC,59
+2013,Bedok Police Division - Tampines NPC,99
+2013,Bedok Police Division - Unknown NPC,0
+2013,Jurong Police Division - Total,614
+2013,Jurong Police Division - Bukit Batok NPC,74
+2013,Jurong Police Division - Bukit Panjang NPC,49
+2013,Jurong Police Division - Choa Chu Kang NPC,95
+2013,Jurong Police Division - Jurong West NPC,97
+2013,Jurong Police Division - Nanyang NPC,119
+2013,Jurong Police Division - Woodlands NPC,na
+2013,Jurong Police Division - Woodlands East NPC,93
+2013,Jurong Police Division - Woodlands West NPC,87
+2013,Jurong Police Division - Unknown NPC,0
+2013,Woodlands Police Division - Total,na
+2013,Woodlands Police Division - Woodlands East NPC,na
+2013,Woodlands Police Division - Woodlands West NPC,na
+2013,Woodlands Police Division - Yishun North NPC,na
+2013,Woodlands Police Division - Yishun South NPC,na
+2013,Woodlands Police Division - Sembawang NPC,na
+2013,Woodlands Police Division - Checkpoint,na
+2013,Woodlands Police Division - Unknown NPC,na
+2014,Central Police Division - Total,342
+2014,Central Police Division - Bukit Merah East NPC,103
+2014,Central Police Division - Marina Bay NPC,113
+2014,Central Police Division - Rochor NPC,126
+2014,Central Police Division - Unknown NPC,0
+2014,Clementi Police Division - Total,262
+2014,Clementi Police Division - Bukit Merah West NPC,66
+2014,Clementi Police Division - Clementi NPC,71
+2014,Clementi Police Division - Jurong East NPC,68
+2014,Clementi Police Division - Queenstown NPC,57
+2014,Clementi Police Division - Unknown NPC,0
+2014,Tanglin Police Division - Total,324
+2014,Tanglin Police Division - Bishan NPC,35
+2014,Tanglin Police Division - Bukit Timah NPC,40
+2014,Tanglin Police Division - Kampong Java NPC,51
+2014,Tanglin Police Division - Orchard NPC,138
+2014,Tanglin Police Division - Toa Payoh NPC,60
+2014,Tanglin Police Division - Unknown NPC,0
+2014,Ang Mo Kio Police Division - Total,366
+2014,Ang Mo Kio Police Division - Ang Mo Kio North NPC,45
+2014,Ang Mo Kio Police Division - Ang Mo Kio South NPC,41
+2014,Ang Mo Kio Police Division - Hougang NPC,55
+2014,Ang Mo Kio Police Division - Punggol NPC,14
+2014,Ang Mo Kio Police Division - Sembawang NPC,34
+2014,Ang Mo Kio Police Division - Sengkang NPC,57
+2014,Ang Mo Kio Police Division - Serangoon NPC,46
+2014,Ang Mo Kio Police Division - Yishun North NPC,50
+2014,Ang Mo Kio Police Division - Yishun South NPC,24
+2014,Ang Mo Kio Police Division - Unknown NPC,0
+2014,Bedok Police Division - Total,562
+2014,Bedok Police Division - Bedok NPC,150
+2014,Bedok Police Division - Changi NPC,48
+2014,Bedok Police Division - Geylang NPC,191
+2014,Bedok Police Division - Marine Parade NPC,39
+2014,Bedok Police Division - Pasir Ris NPC,49
+2014,Bedok Police Division - Tampines NPC,85
+2014,Bedok Police Division - Unknown NPC,0
+2014,Jurong Police Division - Total,524
+2014,Jurong Police Division - Bukit Batok NPC,44
+2014,Jurong Police Division - Bukit Panjang NPC,44
+2014,Jurong Police Division - Choa Chu Kang NPC,60
+2014,Jurong Police Division - Jurong West NPC,100
+2014,Jurong Police Division - Nanyang NPC,78
+2014,Jurong Police Division - Woodlands NPC,na
+2014,Jurong Police Division - Woodlands East NPC,107
+2014,Jurong Police Division - Woodlands West NPC,91
+2014,Jurong Police Division - Unknown NPC,0
+2014,Woodlands Police Division - Total,na
+2014,Woodlands Police Division - Woodlands East NPC,na
+2014,Woodlands Police Division - Woodlands West NPC,na
+2014,Woodlands Police Division - Yishun North NPC,na
+2014,Woodlands Police Division - Yishun South NPC,na
+2014,Woodlands Police Division - Sembawang NPC,na
+2014,Woodlands Police Division - Checkpoint,na
+2014,Woodlands Police Division - Unknown NPC,na
+2015,Central Police Division - Total,304
+2015,Central Police Division - Bukit Merah East NPC,83
+2015,Central Police Division - Marina Bay NPC,112
+2015,Central Police Division - Rochor NPC,109
+2015,Central Police Division - Unknown NPC,0
+2015,Clementi Police Division - Total,206
+2015,Clementi Police Division - Bukit Merah West NPC,48
+2015,Clementi Police Division - Clementi NPC,54
+2015,Clementi Police Division - Jurong East NPC,52
+2015,Clementi Police Division - Queenstown NPC,52
+2015,Clementi Police Division - Unknown NPC,0
+2015,Tanglin Police Division - Total,260
+2015,Tanglin Police Division - Bishan NPC,29
+2015,Tanglin Police Division - Bukit Timah NPC,29
+2015,Tanglin Police Division - Kampong Java NPC,43
+2015,Tanglin Police Division - Orchard NPC,108
+2015,Tanglin Police Division - Toa Payoh NPC,51
+2015,Tanglin Police Division - Unknown NPC,0
+2015,Ang Mo Kio Police Division - Total,380
+2015,Ang Mo Kio Police Division - Ang Mo Kio North NPC,31
+2015,Ang Mo Kio Police Division - Ang Mo Kio South NPC,39
+2015,Ang Mo Kio Police Division - Hougang NPC,95
+2015,Ang Mo Kio Police Division - Punggol NPC,25
+2015,Ang Mo Kio Police Division - Sembawang NPC,17
+2015,Ang Mo Kio Police Division - Sengkang NPC,51
+2015,Ang Mo Kio Police Division - Serangoon NPC,34
+2015,Ang Mo Kio Police Division - Yishun North NPC,49
+2015,Ang Mo Kio Police Division - Yishun South NPC,39
+2015,Ang Mo Kio Police Division - Unknown NPC,0
+2015,Bedok Police Division - Total,438
+2015,Bedok Police Division - Bedok NPC,103
+2015,Bedok Police Division - Changi NPC,36
+2015,Bedok Police Division - Geylang NPC,143
+2015,Bedok Police Division - Marine Parade NPC,47
+2015,Bedok Police Division - Pasir Ris NPC,33
+2015,Bedok Police Division - Tampines NPC,76
+2015,Bedok Police Division - Unknown NPC,0
+2015,Jurong Police Division - Total,455
+2015,Jurong Police Division - Bukit Batok NPC,54
+2015,Jurong Police Division - Bukit Panjang NPC,47
+2015,Jurong Police Division - Choa Chu Kang NPC,80
+2015,Jurong Police Division - Jurong West NPC,78
+2015,Jurong Police Division - Nanyang NPC,64
+2015,Jurong Police Division - Woodlands NPC,na
+2015,Jurong Police Division - Woodlands East NPC,50
+2015,Jurong Police Division - Woodlands West NPC,82
+2015,Jurong Police Division - Unknown NPC,0
+2015,Woodlands Police Division - Total,na
+2015,Woodlands Police Division - Woodlands East NPC,na
+2015,Woodlands Police Division - Woodlands West NPC,na
+2015,Woodlands Police Division - Yishun North NPC,na
+2015,Woodlands Police Division - Yishun South NPC,na
+2015,Woodlands Police Division - Sembawang NPC,na
+2015,Woodlands Police Division - Checkpoint,na
+2015,Woodlands Police Division - Unknown NPC,na
+2016,Central Police Division - Total,216
+2016,Central Police Division - Bukit Merah East NPC,55
+2016,Central Police Division - Marina Bay NPC,81
+2016,Central Police Division - Rochor NPC,80
+2016,Central Police Division - Unknown NPC,0
+2016,Clementi Police Division - Total,203
+2016,Clementi Police Division - Bukit Merah West NPC,64
+2016,Clementi Police Division - Clementi NPC,37
+2016,Clementi Police Division - Jurong East NPC,40
+2016,Clementi Police Division - Queenstown NPC,62
+2016,Clementi Police Division - Unknown NPC,0
+2016,Tanglin Police Division - Total,267
+2016,Tanglin Police Division - Bishan NPC,35
+2016,Tanglin Police Division - Bukit Timah NPC,27
+2016,Tanglin Police Division - Kampong Java NPC,32
+2016,Tanglin Police Division - Orchard NPC,124
+2016,Tanglin Police Division - Toa Payoh NPC,49
+2016,Tanglin Police Division - Unknown NPC,0
+2016,Ang Mo Kio Police Division - Total,355
+2016,Ang Mo Kio Police Division - Ang Mo Kio North NPC,37
+2016,Ang Mo Kio Police Division - Ang Mo Kio South NPC,38
+2016,Ang Mo Kio Police Division - Hougang NPC,61
+2016,Ang Mo Kio Police Division - Punggol NPC,33
+2016,Ang Mo Kio Police Division - Sembawang NPC,22
+2016,Ang Mo Kio Police Division - Sengkang NPC,42
+2016,Ang Mo Kio Police Division - Serangoon NPC,41
+2016,Ang Mo Kio Police Division - Yishun North NPC,45
+2016,Ang Mo Kio Police Division - Yishun South NPC,35
+2016,Ang Mo Kio Police Division - Unknown NPC,0
+2016,Bedok Police Division - Total,377
+2016,Bedok Police Division - Bedok NPC,92
+2016,Bedok Police Division - Changi NPC,24
+2016,Bedok Police Division - Geylang NPC,123
+2016,Bedok Police Division - Marine Parade NPC,44
+2016,Bedok Police Division - Pasir Ris NPC,37
+2016,Bedok Police Division - Tampines NPC,57
+2016,Bedok Police Division - Unknown NPC,0
+2016,Jurong Police Division - Total,392
+2016,Jurong Police Division - Bukit Batok NPC,49
+2016,Jurong Police Division - Bukit Panjang NPC,38
+2016,Jurong Police Division - Choa Chu Kang NPC,56
+2016,Jurong Police Division - Jurong West NPC,68
+2016,Jurong Police Division - Nanyang NPC,67
+2016,Jurong Police Division - Woodlands NPC,na
+2016,Jurong Police Division - Woodlands East NPC,51
+2016,Jurong Police Division - Woodlands West NPC,63
+2016,Jurong Police Division - Unknown NPC,0
+2016,Woodlands Police Division - Total,na
+2016,Woodlands Police Division - Woodlands East NPC,na
+2016,Woodlands Police Division - Woodlands West NPC,na
+2016,Woodlands Police Division - Yishun North NPC,na
+2016,Woodlands Police Division - Yishun South NPC,na
+2016,Woodlands Police Division - Sembawang NPC,na
+2016,Woodlands Police Division - Checkpoint,na
+2016,Woodlands Police Division - Unknown NPC,na
+2017,Central Police Division - Total,313
+2017,Central Police Division - Bukit Merah East NPC,89
+2017,Central Police Division - Marina Bay NPC,134
+2017,Central Police Division - Rochor NPC,89
+2017,Central Police Division - Unknown NPC,0
+2017,Clementi Police Division - Total,244
+2017,Clementi Police Division - Bukit Merah West NPC,64
+2017,Clementi Police Division - Clementi NPC,50
+2017,Clementi Police Division - Jurong East NPC,64
+2017,Clementi Police Division - Queenstown NPC,66
+2017,Clementi Police Division - Unknown NPC,0
+2017,Tanglin Police Division - Total,301
+2017,Tanglin Police Division - Bishan NPC,29
+2017,Tanglin Police Division - Bukit Timah NPC,25
+2017,Tanglin Police Division - Kampong Java NPC,38
+2017,Tanglin Police Division - Orchard NPC,158
+2017,Tanglin Police Division - Toa Payoh NPC,51
+2017,Tanglin Police Division - Unknown NPC,0
+2017,Ang Mo Kio Police Division - Total,385
+2017,Ang Mo Kio Police Division - Ang Mo Kio North NPC,34
+2017,Ang Mo Kio Police Division - Ang Mo Kio South NPC,35
+2017,Ang Mo Kio Police Division - Hougang NPC,55
+2017,Ang Mo Kio Police Division - Punggol NPC,30
+2017,Ang Mo Kio Police Division - Sembawang NPC,36
+2017,Ang Mo Kio Police Division - Sengkang NPC,72
+2017,Ang Mo Kio Police Division - Serangoon NPC,29
+2017,Ang Mo Kio Police Division - Yishun North NPC,61
+2017,Ang Mo Kio Police Division - Yishun South NPC,32
+2017,Ang Mo Kio Police Division - Unknown NPC,0
+2017,Bedok Police Division - Total,339
+2017,Bedok Police Division - Bedok NPC,86
+2017,Bedok Police Division - Changi NPC,31
+2017,Bedok Police Division - Geylang NPC,104
+2017,Bedok Police Division - Marine Parade NPC,35
+2017,Bedok Police Division - Pasir Ris NPC,23
+2017,Bedok Police Division - Tampines NPC,58
+2017,Bedok Police Division - Unknown NPC,0
+2017,Jurong Police Division - Total,380
+2017,Jurong Police Division - Bukit Batok NPC,50
+2017,Jurong Police Division - Bukit Panjang NPC,30
+2017,Jurong Police Division - Choa Chu Kang NPC,47
+2017,Jurong Police Division - Jurong West NPC,59
+2017,Jurong Police Division - Nanyang NPC,64
+2017,Jurong Police Division - Woodlands NPC,na
+2017,Jurong Police Division - Woodlands East NPC,60
+2017,Jurong Police Division - Woodlands West NPC,70
+2017,Jurong Police Division - Unknown NPC,0
+2017,Woodlands Police Division - Total,na
+2017,Woodlands Police Division - Woodlands East NPC,na
+2017,Woodlands Police Division - Woodlands West NPC,na
+2017,Woodlands Police Division - Yishun North NPC,na
+2017,Woodlands Police Division - Yishun South NPC,na
+2017,Woodlands Police Division - Sembawang NPC,na
+2017,Woodlands Police Division - Checkpoint,na
+2017,Woodlands Police Division - Unknown NPC,na
+2018,Central Police Division - Total,347
+2018,Central Police Division - Bukit Merah East NPC,97
+2018,Central Police Division - Marina Bay NPC,156
+2018,Central Police Division - Rochor NPC,94
+2018,Central Police Division - Unknown NPC,0
+2018,Clementi Police Division - Total,213
+2018,Clementi Police Division - Bukit Merah West NPC,52
+2018,Clementi Police Division - Clementi NPC,40
+2018,Clementi Police Division - Jurong East NPC,56
+2018,Clementi Police Division - Queenstown NPC,65
+2018,Clementi Police Division - Unknown NPC,0
+2018,Tanglin Police Division - Total,353
+2018,Tanglin Police Division - Bishan NPC,44
+2018,Tanglin Police Division - Bukit Timah NPC,41
+2018,Tanglin Police Division - Kampong Java NPC,33
+2018,Tanglin Police Division - Orchard NPC,185
+2018,Tanglin Police Division - Toa Payoh NPC,50
+2018,Tanglin Police Division - Unknown NPC,0
+2018,Ang Mo Kio Police Division - Total,424
+2018,Ang Mo Kio Police Division - Ang Mo Kio North NPC,34
+2018,Ang Mo Kio Police Division - Ang Mo Kio South NPC,44
+2018,Ang Mo Kio Police Division - Hougang NPC,67
+2018,Ang Mo Kio Police Division - Punggol NPC,33
+2018,Ang Mo Kio Police Division - Sembawang NPC,32
+2018,Ang Mo Kio Police Division - Sengkang NPC,61
+2018,Ang Mo Kio Police Division - Serangoon NPC,49
+2018,Ang Mo Kio Police Division - Yishun North NPC,64
+2018,Ang Mo Kio Police Division - Yishun South NPC,38
+2018,Ang Mo Kio Police Division - Unknown NPC,0
+2018,Bedok Police Division - Total,377
+2018,Bedok Police Division - Bedok NPC,88
+2018,Bedok Police Division - Changi NPC,52
+2018,Bedok Police Division - Geylang NPC,106
+2018,Bedok Police Division - Marine Parade NPC,39
+2018,Bedok Police Division - Pasir Ris NPC,36
+2018,Bedok Police Division - Tampines NPC,55
+2018,Bedok Police Division - Unknown NPC,0
+2018,Jurong Police Division - Total,417
+2018,Jurong Police Division - Bukit Batok NPC,62
+2018,Jurong Police Division - Bukit Panjang NPC,46
+2018,Jurong Police Division - Choa Chu Kang NPC,56
+2018,Jurong Police Division - Jurong West NPC,62
+2018,Jurong Police Division - Nanyang NPC,79
+2018,Jurong Police Division - Woodlands NPC,na
+2018,Jurong Police Division - Woodlands East NPC,51
+2018,Jurong Police Division - Woodlands West NPC,59
+2018,Jurong Police Division - Unknown NPC,0
+2018,Woodlands Police Division - Total,18
+2018,Woodlands Police Division - Woodlands East NPC,2
+2018,Woodlands Police Division - Woodlands West NPC,7
+2018,Woodlands Police Division - Yishun North NPC,6
+2018,Woodlands Police Division - Yishun South NPC,1
+2018,Woodlands Police Division - Sembawang NPC,2
+2018,Woodlands Police Division - Checkpoint,0
+2018,Woodlands Police Division - Unknown NPC,0
+2019,Central Police Division - Total,304
+2019,Central Police Division - Bukit Merah East NPC,73
+2019,Central Police Division - Marina Bay NPC,147
+2019,Central Police Division - Rochor NPC,84
+2019,Central Police Division - Unknown NPC,0
+2019,Clementi Police Division - Total,231
+2019,Clementi Police Division - Bukit Merah West NPC,52
+2019,Clementi Police Division - Clementi NPC,48
+2019,Clementi Police Division - Jurong East NPC,62
+2019,Clementi Police Division - Queenstown NPC,69
+2019,Clementi Police Division - Unknown NPC,0
+2019,Tanglin Police Division - Total,321
+2019,Tanglin Police Division - Bishan NPC,22
+2019,Tanglin Police Division - Bukit Timah NPC,39
+2019,Tanglin Police Division - Kampong Java NPC,35
+2019,Tanglin Police Division - Orchard NPC,156
+2019,Tanglin Police Division - Toa Payoh NPC,69
+2019,Tanglin Police Division - Unknown NPC,0
+2019,Ang Mo Kio Police Division - Total,285
+2019,Ang Mo Kio Police Division - Ang Mo Kio North NPC,26
+2019,Ang Mo Kio Police Division - Ang Mo Kio South NPC,40
+2019,Ang Mo Kio Police Division - Hougang NPC,71
+2019,Ang Mo Kio Police Division - Punggol NPC,53
+2019,Ang Mo Kio Police Division - Sembawang NPC,na
+2019,Ang Mo Kio Police Division - Sengkang NPC,67
+2019,Ang Mo Kio Police Division - Serangoon NPC,27
+2019,Ang Mo Kio Police Division - Yishun North NPC,na
+2019,Ang Mo Kio Police Division - Yishun South NPC,na
+2019,Ang Mo Kio Police Division - Unknown NPC,0
+2019,Bedok Police Division - Total,322
+2019,Bedok Police Division - Bedok NPC,86
+2019,Bedok Police Division - Changi NPC,22
+2019,Bedok Police Division - Geylang NPC,89
+2019,Bedok Police Division - Marine Parade NPC,36
+2019,Bedok Police Division - Pasir Ris NPC,32
+2019,Bedok Police Division - Tampines NPC,56
+2019,Bedok Police Division - Unknown NPC,0
+2019,Jurong Police Division - Total,263
+2019,Jurong Police Division - Bukit Batok NPC,52
+2019,Jurong Police Division - Bukit Panjang NPC,30
+2019,Jurong Police Division - Choa Chu Kang NPC,71
+2019,Jurong Police Division - Jurong West NPC,51
+2019,Jurong Police Division - Nanyang NPC,59
+2019,Jurong Police Division - Woodlands NPC,na
+2019,Jurong Police Division - Woodlands East NPC,na
+2019,Jurong Police Division - Woodlands West NPC,na
+2019,Jurong Police Division - Unknown NPC,0
+2019,Woodlands Police Division - Total,224
+2019,Woodlands Police Division - Woodlands East NPC,56
+2019,Woodlands Police Division - Woodlands West NPC,53
+2019,Woodlands Police Division - Yishun North NPC,64
+2019,Woodlands Police Division - Yishun South NPC,18
+2019,Woodlands Police Division - Sembawang NPC,27
+2019,Woodlands Police Division - Checkpoint,0
+2019,Woodlands Police Division - Unknown NPC,0
+2020,Central Police Division - Total,216
+2020,Central Police Division - Bukit Merah East NPC,60
+2020,Central Police Division - Marina Bay NPC,77
+2020,Central Police Division - Rochor NPC,76
+2020,Central Police Division - Unknown NPC,3
+2020,Clementi Police Division - Total,203
+2020,Clementi Police Division - Bukit Merah West NPC,54
+2020,Clementi Police Division - Clementi NPC,43
+2020,Clementi Police Division - Jurong East NPC,46
+2020,Clementi Police Division - Queenstown NPC,60
+2020,Clementi Police Division - Unknown NPC,0
+2020,Tanglin Police Division - Total,202
+2020,Tanglin Police Division - Bishan NPC,19
+2020,Tanglin Police Division - Bukit Timah NPC,29
+2020,Tanglin Police Division - Kampong Java NPC,39
+2020,Tanglin Police Division - Orchard NPC,62
+2020,Tanglin Police Division - Toa Payoh NPC,53
+2020,Tanglin Police Division - Unknown NPC,0
+2020,Ang Mo Kio Police Division - Total,225
+2020,Ang Mo Kio Police Division - Ang Mo Kio North NPC,35
+2020,Ang Mo Kio Police Division - Ang Mo Kio South NPC,13
+2020,Ang Mo Kio Police Division - Hougang NPC,51
+2020,Ang Mo Kio Police Division - Punggol NPC,43
+2020,Ang Mo Kio Police Division - Sembawang NPC,na
+2020,Ang Mo Kio Police Division - Sengkang NPC,56
+2020,Ang Mo Kio Police Division - Serangoon NPC,25
+2020,Ang Mo Kio Police Division - Yishun North NPC,na
+2020,Ang Mo Kio Police Division - Yishun South NPC,na
+2020,Ang Mo Kio Police Division - Unknown NPC,2
+2020,Bedok Police Division - Total,260
+2020,Bedok Police Division - Bedok NPC,64
+2020,Bedok Police Division - Changi NPC,14
+2020,Bedok Police Division - Geylang NPC,76
+2020,Bedok Police Division - Marine Parade NPC,36
+2020,Bedok Police Division - Pasir Ris NPC,27
+2020,Bedok Police Division - Tampines NPC,42
+2020,Bedok Police Division - Unknown NPC,1
+2020,Jurong Police Division - Total,250
+2020,Jurong Police Division - Bukit Batok NPC,46
+2020,Jurong Police Division - Bukit Panjang NPC,36
+2020,Jurong Police Division - Choa Chu Kang NPC,63
+2020,Jurong Police Division - Jurong West NPC,46
+2020,Jurong Police Division - Nanyang NPC,57
+2020,Jurong Police Division - Woodlands NPC,na
+2020,Jurong Police Division - Woodlands East NPC,na
+2020,Jurong Police Division - Woodlands West NPC,na
+2020,Jurong Police Division - Unknown NPC,2
+2020,Woodlands Police Division - Total,228
+2020,Woodlands Police Division - Woodlands East NPC,47
+2020,Woodlands Police Division - Woodlands West NPC,43
+2020,Woodlands Police Division - Yishun North NPC,59
+2020,Woodlands Police Division - Yishun South NPC,26
+2020,Woodlands Police Division - Sembawang NPC,46
+2020,Woodlands Police Division - Checkpoint,6
+2020,Woodlands Police Division - Unknown NPC,1
+2021,Central Police Division - Total,231
+2021,Central Police Division - Bukit Merah East NPC,65
+2021,Central Police Division - Marina Bay NPC,91
+2021,Central Police Division - Rochor NPC,73
+2021,Central Police Division - Unknown NPC,2
+2021,Clementi Police Division - Total,190
+2021,Clementi Police Division - Bukit Merah West NPC,41
+2021,Clementi Police Division - Clementi NPC,32
+2021,Clementi Police Division - Jurong East NPC,45
+2021,Clementi Police Division - Queenstown NPC,71
+2021,Clementi Police Division - Unknown NPC,1
+2021,Tanglin Police Division - Total,231
+2021,Tanglin Police Division - Bishan NPC,37
+2021,Tanglin Police Division - Bukit Timah NPC,33
+2021,Tanglin Police Division - Kampong Java NPC,45
+2021,Tanglin Police Division - Orchard NPC,66
+2021,Tanglin Police Division - Toa Payoh NPC,49
+2021,Tanglin Police Division - Unknown NPC,1
+2021,Ang Mo Kio Police Division - Total,287
+2021,Ang Mo Kio Police Division - Ang Mo Kio North NPC,35
+2021,Ang Mo Kio Police Division - Ang Mo Kio South NPC,30
+2021,Ang Mo Kio Police Division - Hougang NPC,56
+2021,Ang Mo Kio Police Division - Punggol NPC,43
+2021,Ang Mo Kio Police Division - Sembawang NPC,na
+2021,Ang Mo Kio Police Division - Sengkang NPC,83
+2021,Ang Mo Kio Police Division - Serangoon NPC,39
+2021,Ang Mo Kio Police Division - Yishun North NPC,na
+2021,Ang Mo Kio Police Division - Yishun South NPC,na
+2021,Ang Mo Kio Police Division - Unknown NPC,1
+2021,Bedok Police Division - Total,307
+2021,Bedok Police Division - Bedok NPC,80
+2021,Bedok Police Division - Changi NPC,31
+2021,Bedok Police Division - Geylang NPC,73
+2021,Bedok Police Division - Marine Parade NPC,33
+2021,Bedok Police Division - Pasir Ris NPC,33
+2021,Bedok Police Division - Tampines NPC,57
+2021,Bedok Police Division - Unknown NPC,0
+2021,Jurong Police Division - Total,263
+2021,Jurong Police Division - Bukit Batok NPC,52
+2021,Jurong Police Division - Bukit Panjang NPC,32
+2021,Jurong Police Division - Choa Chu Kang NPC,61
+2021,Jurong Police Division - Jurong West NPC,63
+2021,Jurong Police Division - Nanyang NPC,53
+2021,Jurong Police Division - Woodlands NPC,na
+2021,Jurong Police Division - Woodlands East NPC,na
+2021,Jurong Police Division - Woodlands West NPC,na
+2021,Jurong Police Division - Unknown NPC,2
+2021,Woodlands Police Division - Total,197
+2021,Woodlands Police Division - Woodlands East NPC,45
+2021,Woodlands Police Division - Woodlands West NPC,40
+2021,Woodlands Police Division - Yishun North NPC,43
+2021,Woodlands Police Division - Yishun South NPC,27
+2021,Woodlands Police Division - Sembawang NPC,36
+2021,Woodlands Police Division - Checkpoint,4
+2021,Woodlands Police Division - Unknown NPC,2

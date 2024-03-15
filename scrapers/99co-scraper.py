@@ -48,7 +48,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         self.pages_to_fetch = 20
         self.properties_per_page = 200
         self.pagination_element = "ul.Pagination_SearchPagination_links__0JY7B"
-        self.property_card_listing_div_class = "Listings_listingsContainer__Zk8fp"
+        self.property_card_listing_div_class = "ListItemCard_container__WdOQr"
         self.rental_prices_dir = f'./rental_prices/ninety_nine/'
 
     def pagination(self, soup):

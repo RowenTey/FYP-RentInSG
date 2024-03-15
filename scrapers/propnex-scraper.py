@@ -57,6 +57,7 @@ class PropnexScraper(AbstractPropertyScraper):
         self.pages_to_fetch = 3
         self.properties_per_page = 15
         self.pagination_element = 'div.listingPagination'
+        self.property_card_listing_div_class = 'listing-box updated'
         self.rental_prices_dir = f'./rental_prices/propnex/'
         self.driver = self.init_driver()
 
@@ -140,7 +141,8 @@ class PropnexScraper(AbstractPropertyScraper):
 
     def link_scraper(self, soup):
         links = []
-        units = soup.find_all("div", class_="listing-box updated")
+        units = soup.find_all(
+            "div", class_=self.property_card_listing_div_class)
         for unit in units:
             prop = unit.find("div", class_="listing-box-bottom").find("a")
             prop_name = prop.text.strip()
