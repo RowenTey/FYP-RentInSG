@@ -1,9 +1,4 @@
 import os
-import sys
-
-sys.path.append(os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '../')))
-
 import cfscrape
 import random
 import requests
@@ -15,9 +10,6 @@ from fake_useragent import UserAgent
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
-from utils.notify import send_message
-from dotenv import load_dotenv
-load_dotenv()
 
 
 class AbstractPropertyScraper(ABC):
@@ -266,7 +258,7 @@ class AbstractPropertyScraper(ABC):
         """
         soup = self.fetch_html(self.header + self.key + self.query, True)
         pages = min(self.pages_to_fetch, self.pagination(soup))
-        print(str(pages) + ' pages will be scraped.\n')
+        print(str(pages) + ' page will be scraped.\n')
         return soup, pages
 
     def print_title(self):
@@ -277,31 +269,6 @@ class AbstractPropertyScraper(ABC):
         print(
             f'\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n')
         print('Job initiated with query on rental properties in Singapore.')
-
-    def check_for_failure(self):
-        if self.failure_counter >= 100:
-            send_message(
-                f"{self.platform_name} Scraper", "Exceeded 100 failures, please check!")
-
-        csv_filepath = os.path.join(
-            self.rental_prices_dir, f'{date.today()}.csv')
-        try:
-            df = pd.read_csv(csv_filepath)
-        except Exception as e:
-            send_message(
-                f"{self.platform_name} Scraper", f"Error reading {csv_filepath} - No data for {date.today()}!")
-            return
-
-        if df.empty:
-            send_message(
-                f"{self.platform_name} Scraper", f"No data for {date.today()}!")
-            return
-
-        for column in df.columns:
-            null_percentage = df[column].isnull().sum() / len(df) * 100
-            if null_percentage > 50:
-                send_message(f"{self.platform_name} Scraper",
-                             f"Null values in column {column} exceed 50%!")
 
     def run(self, debug):
         """
@@ -314,9 +281,6 @@ class AbstractPropertyScraper(ABC):
         self.print_title()
         for district in self.DISTRICTS.keys():
             self.scrape_rental_prices(district, debug)
-
-        # if not debug:
-        self.check_for_failure()
 
     @staticmethod
     def to_snake_case(input_string: str) -> str:
