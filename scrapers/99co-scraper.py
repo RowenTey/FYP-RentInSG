@@ -47,7 +47,8 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         self.platform_name = '99.co'
         self.pages_to_fetch = 20
         self.properties_per_page = 200
-        self.pagination_element = "ul.SearchPagination-links"
+        self.pagination_element = "ul.Pagination_SearchPagination_links__0JY7B"
+        self.property_card_listing_div_class = "Listings_listingsContainer__Zk8fp"
         self.rental_prices_dir = f'./rental_prices/ninety_nine/'
 
     def pagination(self, soup):
@@ -68,7 +69,8 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
 
     def link_scraper(self, soup):
         links = []
-        units = soup.find_all("div", class_="_2J3pS")
+        units = soup.find_all(
+            "div", class_=self.property_card_listing_div_class)
         for unit in units:
             prop = unit.find("a", itemprop='url')
             prop_name = prop['title'].strip()
@@ -103,7 +105,8 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             print(f"Error scraping (bed,bath,sqft) info: {err}")
 
         try:
-            address_span = soup.find('p', class_="dniCg _3j72o _2rhE-")
+            address_span = soup.find(
+                'p', class_="Body_body2__xKm70 Overview_address__HS_GZ Body_baseColor__nHKhc")
             address = address_span.text.strip().split('\n')[0]
             """ 
             e.g "· Executive Condo for Rent\nAdmiralty / Woodlands (D25)"
@@ -112,6 +115,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             """
             if address.startswith('·'):
                 raise Exception('Address not found')
+
             pattern = re.compile(r'\s·.*?Rent', re.DOTALL)
             address = re.sub(pattern, '', address)
             output['address'] = address.strip()
@@ -120,32 +124,41 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
 
         try:
             # Find the script tag by ID
-            script_tag = soup.find('script', {'id': '__REDUX_STORE__'})
+            script_tags = soup.find_all('script')
 
+            # example: {\"coordinates\":{\"lat\":1.2769696206188,\"lng\":103.8535109362695}
             pattern = re.compile(
-                r'"coordinates":\{"lng":([0-9.-]+),"lat":([0-9.-]+)\}')
-            match = pattern.search(script_tag.text.strip())
+                r'\\"coordinates\\":\{\\"lat\\":([0-9.-]+),\\"lng\\":([0-9.-]+)\}')
 
-            if match:
-                # Extract the matched JSON string
-                json_string = "{" + match.group() + "}"
+            match = None
+            for script_tag in script_tags:
+                # Search for the pattern in the script tag
+                match = pattern.search(script_tag.text.strip())
+                if match:
+                    break
 
-                # Load the JSON content
-                json_data = json.loads(json_string)
+            if not match:
+                raise (Exception('Coordinates not found'))
 
-                # Access lat and lng values
-                lat = json_data.get('coordinates', {}).get('lat')
-                lng = json_data.get('coordinates', {}).get('lng')
+            # Extract the matched JSON string
+            json_string = '{' + match.group().replace('\\', '') + '}'
 
-                output['latitude'] = lat
-                output['longitude'] = lng
+            # Load the JSON content
+            json_data = json.loads(json_string)
+
+            # Access lat and lng values
+            lat = json_data.get('coordinates', {}).get('lat')
+            lng = json_data.get('coordinates', {}).get('lng')
+
+            output['latitude'] = lat
+            output['longitude'] = lng
         except Exception as err:
             print(f"Error scraping coordinates: {err}")
 
         try:
             # Extract the nearest MRT station and distance
             mrt_info = soup.find(
-                'p', class_='_2sIc2 _2rhE- _1c-pJ').text.strip()
+                'p', class_='Body_body1__Mt9QN Body_baseColor__nHKhc Body_autoHeight__MovH5').text.strip()
             # e.g: 3 mins (175 m) from Shenton Way MRT
             distance, output['nearest_mrt'] = mrt_info.split(' from ')
 
@@ -157,11 +170,14 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
 
         try:
             # Extract all facilities
-            facilities = soup.find_all('div', class_='_3atmT')
+            facilities = soup.find_all('div', class_='Amenities_grid__GMGLd')
             res = []
             for facility in facilities:
                 img_alt = facility.find('img')['alt']
                 res.append(img_alt)
+
+            if not res:
+                raise Exception('Facilities not found')
 
             output['facilities'] = res
         except Exception as err:
@@ -169,7 +185,8 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
 
         try:
             property_details_rows = soup.select(
-                '#propertyDetails table._3NpKo tr._2dry3')
+                'tr.KeyValueDescription_section__nPsI6'
+            )
 
             """ 
             e.g
@@ -182,8 +199,10 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             """
             not_included = set(['Last updated'])
             for row in property_details_rows:
-                columns = row.find_all('td', class_='NomDX')
-                values = row.find_all('td', class_='XCAFU')
+                columns = row.find_all(
+                    'td', class_='KeyValueDescription_label__ZTXLo')
+                values = row.find_all(
+                    'td', class_='KeyValueDescription_text__wDVAb')
 
                 for col, val in zip(columns, values):
                     label = col.get_text(strip=True)
@@ -192,6 +211,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
 
                     output[NinetyNineCoScraper.to_snake_case(
                         label)] = val.get_text(strip=True)
+
         except Exception as err:
             print(f"Error scraping property details: {err}")
 
@@ -212,7 +232,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                 continue
 
             soup = self.fetch_html(self.header + self.key + '/?page_num=' +
-                                   str(page) + self.query, True)
+                                   str(page) + '&' + self.query[1:], True)
             if not soup:
                 print(f'Error fetching page {page}, skipping...')
                 continue

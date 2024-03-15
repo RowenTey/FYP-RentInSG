@@ -95,7 +95,9 @@ class AbstractPropertyScraper(ABC):
         self.properties_per_page = 50  # default to 50 properties per page
         self.pages_to_fetch = 10  # default to 10 pages
         self.pagination_element = ''
+        self.property_card_listing_div_class = ''
         self.rental_price_dir = 'rental_prices/'
+        self.failure_counter = 0
         self.props = []
 
     def fetch_html(self, url: str, has_pages: bool) -> BeautifulSoup:
@@ -137,6 +139,7 @@ class AbstractPropertyScraper(ABC):
                     print('CAPTCHA -> Retrying ' +
                           '(' + str(trial) + '/20)...')
                     time.sleep(0.1)
+                    self.failure_counter += 1
 
                     # Wait 30s every 10 tries
                     if trial % 10 == 0:
@@ -147,6 +150,7 @@ class AbstractPropertyScraper(ABC):
                     print('No pages -> Retrying ' +
                           '(' + str(trial) + '/20)...')
                     time.sleep(0.1)
+                    self.failure_counter += 1
 
                     # Wait 30s every 10 tries
                     if trial % 10 == 0:
