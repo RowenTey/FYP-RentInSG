@@ -239,14 +239,14 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             self.props += self.link_scraper(soup)
             print('\rPage {}/{} done.'.format(str(page), str(pages)))
 
+        self.properties_per_page = self.properties_per_page if not debug else 1
+
         # Scrape rental info for each property
         rental_infos = []
         print('\nA total of ' + str(min(self.properties_per_page, len(self.props))) +
               ' properties will be scraped.\n')
 
         for i, prop in enumerate(self.props):
-            if debug and i == 6:
-                break
             # only scrape self.properties_per_page per district
             if i == self.properties_per_page:
                 break
@@ -267,6 +267,12 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                   str(min(self.properties_per_page, len(self.props))) + ' done!')
 
         df = pd.DataFrame(rental_infos)
+
+        if df.empty:
+            print(f"No properties found for {self.DISTRICTS[district]}")
+            self.refresh_variables()
+            return
+
         df = df[self.COLUMNS]
         print(df.head())
         self.output_to_csv(df)
