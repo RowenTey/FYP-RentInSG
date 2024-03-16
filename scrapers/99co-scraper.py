@@ -44,11 +44,10 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                  query='?query_ids=dtdistrict{district}&query_type=district&rental_type=all',
                  ):
         super().__init__(header, key, query)
-        self.platform_name = '99.co'
         self.pages_to_fetch = 20
+        self.platform_name = '99.co'
         self.properties_per_page = 200
         self.pagination_element = "ul.Pagination_SearchPagination_links__0JY7B"
-        self.property_card_listing_div_class = "ListItemCard_container__WdOQr"
         self.rental_prices_dir = f'./rental_prices/ninety_nine/'
 
     def pagination(self, soup):
@@ -70,7 +69,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
     def link_scraper(self, soup):
         links = []
         units = soup.find_all(
-            "div", class_=self.property_card_listing_div_class)
+            "div", attrs={"data-cy": "listingCard"})
         for unit in units:
             prop = unit.find("a", itemprop='url')
             prop_name = prop['title'].strip()
@@ -177,6 +176,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                 res.append(img_alt)
 
             if not res:
+                print(facilities)
                 raise Exception('Facilities not found')
 
             output['facilities'] = res
@@ -248,7 +248,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             if debug and i == 6:
                 break
             # only scrape self.properties_per_page per district
-            if i == self.properties_per_page + 1:
+            if i == self.properties_per_page:
                 break
             print(f"Fetching {prop[0]}...")
 
