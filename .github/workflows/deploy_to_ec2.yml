@@ -22,4 +22,4 @@ jobs:
           script: |
             ls
             cd FYP-RentInSG
-            git pull https://${{ secrets.GH_TOKEN }}@github.com/RowenTey/FYP-RentInSG.git
+            sudo git pull https://${{ secrets.GH_TOKEN }}@github.com/RowenTey/FYP-RentInSG.git
