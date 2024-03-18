@@ -21,4 +21,4 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           script: |
             cd /FYP-RentInSG
-            git pull https://${{ secrets.GITHUB_TOKEN }}@github.com/RowenTey/FYP-RentInSG.git
+            git pull https://${{ secrets.GH_TOKEN }}@github.com/RowenTey/FYP-RentInSG.git
