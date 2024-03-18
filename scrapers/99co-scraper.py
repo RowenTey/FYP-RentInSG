@@ -44,7 +44,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                  query='?query_ids=dtdistrict{district}&query_type=district&rental_type=all',
                  ):
         super().__init__(header, key, query)
-        self.pages_to_fetch = 20
+        self.pages_to_fetch = 15
         self.platform_name = '99.co'
         self.properties_per_page = 200
         self.pagination_element = "ul.Pagination_SearchPagination_links__0JY7B"
@@ -122,19 +122,12 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             print(f"Error scraping address: {err}")
 
         try:
-            # Find the script tag by ID
-            script_tags = soup.find_all('script')
-
             # example: {\"coordinates\":{\"lat\":1.2769696206188,\"lng\":103.8535109362695}
             pattern = re.compile(
                 r'\\"coordinates\\":\{\\"lat\\":([0-9.-]+),\\"lng\\":([0-9.-]+)\}')
 
             match = None
-            for script_tag in script_tags:
-                # Search for the pattern in the script tag
-                match = pattern.search(script_tag.text.strip())
-                if match:
-                    break
+            match = pattern.search(self.html_content)
 
             if not match:
                 raise (Exception('Coordinates not found'))
@@ -299,4 +292,5 @@ if __name__ == "__main__":
             print(f"\nTime taken: {time.time() - start} seconds")
             break
         except Exception as err:
-            print(f'Error scraping: {err}, retrying...')
+            print(
+                f'Error scraping - {err.__class__.__name__}: {err}\nRetrying...')

@@ -99,6 +99,7 @@ class AbstractPropertyScraper(ABC):
         self.header = header
         self.key = key
         self.query = query
+        self.html_content = ''
         self.platform_name = ''
         self.properties_per_page = 50  # default to 50 properties per page
         self.pages_to_fetch = 10  # default to 10 pages
@@ -138,10 +139,10 @@ class AbstractPropertyScraper(ABC):
                 # print(headers)
 
                 time.sleep(random.randint(1, 3))
-                html_content = scraper.get(url).text
+                self.html_content = scraper.get(url).text
                 print("=" * 75 + "\n")
 
-                soup = BeautifulSoup(html_content, 'html.parser')
+                soup = BeautifulSoup(self.html_content, 'html.parser')
 
                 if "captcha" in soup.text:
                     print('CAPTCHA -> Retrying ' +
@@ -315,7 +316,6 @@ class AbstractPropertyScraper(ABC):
         for district in self.DISTRICTS.keys():
             self.scrape_rental_prices(district, debug)
 
-        # if not debug:
         self.check_for_failure()
 
     @staticmethod
