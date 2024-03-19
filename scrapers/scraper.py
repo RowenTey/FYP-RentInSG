@@ -266,6 +266,9 @@ class AbstractPropertyScraper(ABC):
 
         """
         soup = self.fetch_html(self.header + self.key + self.query, True)
+        if not soup:
+            print(f'Error fetching initial page, exiting...')
+            return None, None
         pages = min(self.pages_to_fetch, self.pagination(soup))
         print(str(pages) + ' pages will be scraped.\n')
         return soup, pages

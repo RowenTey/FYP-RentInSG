@@ -215,6 +215,9 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         print(f"Scraping {self.DISTRICTS[district]}...")
 
         soup, pages = self.initial_fetch()
+        if not soup:
+            print(f'Error fetching initial page, skipping...')
+            return
         # Scrape links from the first page for rental properties
         self.props += self.link_scraper(soup)
         print('\rPage 1/{} done.'.format(str(pages)))
@@ -284,13 +287,11 @@ if __name__ == "__main__":
                         help="Enable debug mode")
     args = parser.parse_args()
 
-    while True:
-        try:
-            start = time.time()
-            ninetynine_co_scraper = NinetyNineCoScraper()
-            ninetynine_co_scraper.run(debug=args.debug)
-            print(f"\nTime taken: {time.time() - start} seconds")
-            break
-        except Exception as err:
-            print(
-                f'Error scraping - {err.__class__.__name__}: {err}\nRetrying...')
+    try:
+        start = time.time()
+        ninetynine_co_scraper = NinetyNineCoScraper()
+        ninetynine_co_scraper.run(debug=args.debug)
+        print(f"\nTime taken: {time.time() - start} seconds")
+    except Exception as err:
+        print(
+            f'Error scraping - {err.__class__.__name__}: {err}\nRetrying...')
