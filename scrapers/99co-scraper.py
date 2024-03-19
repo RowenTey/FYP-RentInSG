@@ -282,13 +282,13 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
 
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
-    load_dotenv()
-
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Enable debug mode")
     args = parser.parse_args()
+
+    from dotenv import load_dotenv
+    load_dotenv()
 
     try:
         start = time.time()
