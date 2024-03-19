@@ -68,9 +68,6 @@ class MotherDuckDBConnector:
         self.logger.info("Closing connection to MotherDuckDB...")
         self.connection.close()
 
-    def __del__(self):
-        self.close()
-
 
 def connect_to_motherduckdb() -> MotherDuckDBConnector:
     db = MotherDuckDBConnector()
