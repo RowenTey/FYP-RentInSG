@@ -44,6 +44,8 @@ class MotherDuckDBConnector:
         return self.connection.sql(query).df()
 
     def update_table(self, table_name: str, key_col: str, updated_cols: list, df: DataFrame):
+        logging.info(f"Updating table {table_name} with {len(df)} rows...")
+
         # Update the table with values from a DataFrame
         queries = []
         for _, row in df.iterrows():
