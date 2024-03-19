@@ -528,7 +528,7 @@ if __name__ == '__main__':
             elif LAST_TRANSFORMED_DATE >= file_date and \
                     (datetime.strptime(LAST_TRANSFORMED_DATE, '%Y-%m-%d') - datetime.strptime(file_date, '%Y-%m-%d')).days > KEEP_FILE_THRESHOLD:
                 logging.info(f"Deleting {filename}...")
-                if not debug:
+                if not args.debug:
                     delete_s3_file(BUCKET_NAME, filename)
             else:
                 logging.info(f"Skipping {filename}...")
