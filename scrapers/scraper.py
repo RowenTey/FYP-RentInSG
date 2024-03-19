@@ -16,8 +16,6 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 from utils.notify import send_message
-from dotenv import load_dotenv
-load_dotenv()
 
 
 class AbstractPropertyScraper(ABC):
