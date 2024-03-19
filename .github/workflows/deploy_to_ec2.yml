@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-      - name: executing remote ssh commands using password
+      - name: Execute SSH command into EC2 & git pull
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOST }}
@@ -22,4 +22,4 @@ jobs:
           script: |
             ls
             cd FYP-RentInSG
-            sudo git pull https://${{ secrets.GH_TOKEN }}@github.com/RowenTey/FYP-RentInSG.git
+            sudo git pull https://${{ secrets.GH_TOKEN }}@github.com/RowenTey/FYP-RentInSG.git prod
