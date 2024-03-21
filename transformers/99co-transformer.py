@@ -23,6 +23,9 @@ from utils.read_df_from_s3 import read_df_from_s3
 from utils.motherduckdb_connector import MotherDuckDBConnector, connect_to_motherduckdb
 
 
+MRT_INFO, HAWKER_INFO, SUPERMARKET_INFO, PRIMARY_SCHOOL_INFO, MALL_INFO = None, None, None, None, None
+
+
 def update_coord_w_building_name(df, building_map) -> Tuple[pd.DataFrame, dict]:
     # Locate rows with null lat and long
     df_null_coords = df[(df['latitude'].isnull()) & (df['longitude'].isnull())]
@@ -129,55 +132,62 @@ def fetch_mall_info(db: MotherDuckDBConnector):
 
 
 def update_mrt(db: MotherDuckDBConnector, df):
+    global MRT_INFO
     df_null_mrt = df[df["nearest_mrt"].isnull()]
 
-    mrt_info = fetch_mrt_info(db)
+    MRT_INFO = fetch_mrt_info(db) if MRT_INFO is None else MRT_INFO
     df_null_mrt = find_nearest(
-        df_null_mrt, mrt_info, "nearest_mrt", "distance_to_nearest_mrt")
+        df_null_mrt, MRT_INFO, "nearest_mrt", "distance_to_nearest_mrt")
     df.update(df_null_mrt)
 
     return df
 
 
 def update_hawker(db: MotherDuckDBConnector, df):
+    global HAWKER_INFO
     df_null_hawker = df[df["nearest_hawker"].isnull()]
 
-    hawker_info = fetch_hawker_info(db)
+    HAWKER_INFO = fetch_hawker_info(db) if HAWKER_INFO is None else HAWKER_INFO
     df_null_hawker = find_nearest(
-        df_null_hawker, hawker_info, "nearest_hawker", "distance_to_nearest_hawker")
+        df_null_hawker, HAWKER_INFO, "nearest_hawker", "distance_to_nearest_hawker")
     df.update(df_null_hawker)
 
     return df
 
 
 def update_supermarket(db: MotherDuckDBConnector, df):
+    global SUPERMARKET_INFO
     df_null_supermarket = df[df["nearest_supermarket"].isnull()]
 
-    supermarket_info = fetch_supermarket_info(db)
+    SUPERMARKET_INFO = fetch_supermarket_info(
+        db) if SUPERMARKET_INFO is None else SUPERMARKET_INFO
     df_null_supermarket = find_nearest(
-        df_null_supermarket, supermarket_info, "nearest_supermarket", "distance_to_nearest_supermarket")
+        df_null_supermarket, SUPERMARKET_INFO, "nearest_supermarket", "distance_to_nearest_supermarket")
     df.update(df_null_supermarket)
 
     return df
 
 
 def update_primary_school(db: MotherDuckDBConnector, df):
+    global PRIMARY_SCHOOL_INFO
     df_null_sch = df[df["nearest_sch"].isnull()]
 
-    sch_info = fetch_primary_school_info(db)
+    PRIMARY_SCHOOL_INFO = fetch_primary_school_info(
+        db) if PRIMARY_SCHOOL_INFO is None else PRIMARY_SCHOOL_INFO
     df_null_sch = find_nearest(
-        df_null_sch, sch_info, "nearest_sch", "distance_to_nearest_sch")
+        df_null_sch, PRIMARY_SCHOOL_INFO, "nearest_sch", "distance_to_nearest_sch")
     df.update(df_null_sch)
 
     return df
 
 
 def update_mall(db: MotherDuckDBConnector, df):
+    global MALL_INFO
     df_null_mall = df[df["nearest_mall"].isnull()]
 
-    mall_info = fetch_mall_info(db)
+    MALL_INFO = fetch_mall_info(db) if MALL_INFO is None else MALL_INFO
     df_null_mall = find_nearest(
-        df_null_mall, mall_info, "nearest_mall", "distance_to_nearest_mall")
+        df_null_mall, MALL_INFO, "nearest_mall", "distance_to_nearest_mall")
     df.update(df_null_mall)
 
     return df
@@ -298,6 +308,15 @@ def drop_duplicates(df, geometry_df: gpd.GeoDataFrame) -> pd.DataFrame:
     logging.info("Length of real duplicates: " +
                  str(len(df[df.duplicated(subset='listing_id', keep=False)])))
     df.drop_duplicates(subset='listing_id', keep='first', inplace=True)
+    return df
+
+
+def drop_null_coords(df) -> pd.DataFrame:
+    indexes = df.loc[(df['latitude'].isnull()) |
+                     (df['longitude'].isnull())].index
+    logging.info("Length of null coordinates: " +
+                 str(len(df[df['latitude'].isnull() | df['longitude'].isnull()])))
+    df.drop(indexes, inplace=True)
     return df
 
 
@@ -439,6 +458,9 @@ def transform(db: MotherDuckDBConnector, date: str, debug: bool = False):
     # Drop duplicates
     df = drop_duplicates(df, geometry_df)
 
+    # Drop rows with null coordinates
+    df = drop_null_coords(df)
+
     # Add in additional info
     df = augment_df_w_add_info(db, df)
 
@@ -477,7 +499,7 @@ def get_s3_file_names(bucket_name, prefix):
     file_names = []
     for obj in response['Contents']:
         file_names.append(obj['Key'])
-    return file_names
+    return sorted(set(file_names))
 
 
 def delete_s3_file(bucket_name, filename):
@@ -518,8 +540,7 @@ if __name__ == '__main__':
 
     db = connect_to_motherduckdb()
     try:
-        # today = datetime.now().strftime('%Y-%m-%d')
-        today = "2024-03-01"
+        today = datetime.now().strftime('%Y-%m-%d')
         for filename in get_s3_file_names(bucket_name=BUCKET_NAME, prefix=PREFIX):
             file_date = filename.split('/')[-1].split('.')[0]
             if LAST_TRANSFORMED_DATE < file_date <= today:
