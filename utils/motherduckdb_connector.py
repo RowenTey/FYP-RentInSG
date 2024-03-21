@@ -61,7 +61,7 @@ class MotherDuckDBConnector:
 
     def insert_df(self, table_name: str, df: DataFrame):
         # make sure df matches schema of table_name
-        return self.connection.sql(f"INSERT INTO {table_name} SELECT * FROM df")
+        return self.connection.sql(f"INSERT OR IGNORE INTO {table_name} SELECT * FROM df")
 
     def close(self):
         # Close the database connection
