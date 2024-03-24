@@ -205,14 +205,22 @@ def simplify_lease_type(lease_type):
 def simplify_property_type(property_type):
     if pd.isnull(property_type):
         return None
-    elif 'Condo' in property_type and 'Executive' not in property_type:
+    elif 'Condo' in property_type:
+        if 'Executive' in property_type:
+            return 'Executive Condo'
         return 'Condo'
-    elif 'HDB' in property_type and 'Executive' not in property_type:
+    elif 'HDB' in property_type:
+        if 'Executive' in property_type:
+            return 'Executive HDB'
         return 'HDB'
-    elif 'Apartment' in property_type and 'Executive' not in property_type:
+    elif 'Apartment' in property_type:
+        if 'Executive' in property_type:
+            return 'Executive Apartment'
         return 'Apartment'
+    elif 'Walk-up' in property_type:
+        return 'Walk-up'
     elif 'Bungalow' in property_type:
-        return 'HDB'
+        return 'Bungalow'
     elif 'Land' in property_type:
         return 'Landed'
 
