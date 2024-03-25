@@ -261,7 +261,6 @@ def update_room_rental_properties(df):
     indexes = df.loc[(df['property_name'].str.contains(
         'Studio', case=False))].index
     df.loc[indexes, 'bedroom'] = 1
-
     return df
 
 
@@ -600,7 +599,7 @@ if __name__ == '__main__':
         logging.error(f"{e.__class__.__name__}: {e}")
         traceback.print_exc()
 
-        send_message(f"99.co transformer failed: {e.__class__.__name__} - {e}")
+        send_message("99.co transformer", f"Transformer failed: {e.__class__.__name__} - {e}")
 
         if cur_date:
             with open('logs/transformer/last_transformed_date.log', 'w') as file:
