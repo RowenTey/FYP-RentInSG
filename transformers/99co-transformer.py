@@ -390,7 +390,7 @@ def transform_numerical_values(df) -> pd.DataFrame:
             extract_num).str.replace(',', '').astype(int)
         df['built_year'] = df['built_year'].fillna(9999).astype(int)
         df['price/sqft'] = df['price/sqft'].apply(
-            extract_num).astype(float)
+            extract_num).str.replace(',', '').astype(float)
     except TypeError as e:
         logging.error(
             f"No numerical values on this day: {e.__class__.__name__} - {e}")
@@ -577,10 +577,12 @@ if __name__ == '__main__':
     db = connect_to_motherduckdb()
     try:
         today = datetime.now().strftime('%Y-%m-%d')
-        cur_date = ''
+        prev_date = LAST_TRANSFORMED_DATE
+        cur_date = LAST_TRANSFORMED_DATE
         for filename in get_s3_file_names(bucket_name=BUCKET_NAME, prefix=PREFIX):
             file_date = filename.split('/')[-1].split('.')[0]
             if LAST_TRANSFORMED_DATE < file_date <= today:
+                prev_date = cur_date
                 cur_date = file_date
                 logging.info(F"Transforming {filename}...")
                 transform(db, file_date, args.debug)
@@ -599,10 +601,11 @@ if __name__ == '__main__':
         logging.error(f"{e.__class__.__name__}: {e}")
         traceback.print_exc()
 
-        send_message("99.co transformer", f"Transformer failed: {e.__class__.__name__} - {e}")
+        send_message("99.co transformer",
+                     f"Transformer failed: {e.__class__.__name__} - {e}")
 
-        if cur_date:
+        if prev_date:
             with open('logs/transformer/last_transformed_date.log', 'w') as file:
-                file.write(cur_date)
+                file.write(prev_date)
     finally:
         db.close()
