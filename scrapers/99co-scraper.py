@@ -287,6 +287,9 @@ if __name__ == "__main__":
                         help="Enable debug mode")
     args = parser.parse_args()
 
+    from dotenv import load_dotenv
+    load_dotenv()
+
     try:
         start = time.time()
         ninetynine_co_scraper = NinetyNineCoScraper()
