@@ -31,5 +31,5 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
     df = read_df_from_s3(
-        "rental_prices/ninety_nine/processed/2024-01-25.parquet.gzip")
+        "rental_prices/ninety_nine/2024-05-05.parquet.gzip")
     print(df)

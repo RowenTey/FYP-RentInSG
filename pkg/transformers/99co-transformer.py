@@ -23,6 +23,9 @@ from utils.read_df_from_s3 import read_df_from_s3
 from utils.notify import send_message
 from utils.motherduckdb_connector import MotherDuckDBConnector, connect_to_motherduckdb
 
+# Global vars to store 1 time info -> prevent multiple fetches
+MRT_INFO, HAWKER_INFO, SUPERMARKET_INFO, PRIMARY_SCHOOL_INFO, MALL_INFO = None, None, None, None, None
+
 
 MRT_INFO, HAWKER_INFO, SUPERMARKET_INFO, PRIMARY_SCHOOL_INFO, MALL_INFO = None, None, None, None, None
 
@@ -224,6 +227,8 @@ def simplify_property_type(property_type):
         return 'Bungalow'
     elif 'Land' in property_type:
         return 'Landed'
+    elif 'Cluster House' in property_type:
+        return 'Cluster House'
 
     return property_type.strip()
 
@@ -256,7 +261,8 @@ def update_room_rental_properties(df):
         'Room', case=False))].index
     df.loc[indexes, 'is_whole_unit'] = False
     df.loc[indexes, 'bedroom'] = 1
-    df.loc[indexes, 'bathroom'] = 0
+    # Assume 1 bathroom for room rental
+    df.loc[indexes, 'bathroom'] = 1
 
     indexes = df.loc[(df['property_name'].str.contains(
         'Studio', case=False))].index
@@ -265,6 +271,8 @@ def update_room_rental_properties(df):
 
 
 def augment_df_w_add_info(db: MotherDuckDBConnector, df):
+    # Already initialised during scraping
+    # TODO: CHECK IF THIS IS CORRECT
     df = update_mrt(db, df)
 
     df["nearest_hawker"] = None

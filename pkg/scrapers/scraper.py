@@ -1,19 +1,20 @@
 import os
 import sys
 
+
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../')))
 
-import cfscrape
 import random
-import requests
 import time
+import requests
+import cloudscraper as cfscrape
 import pandas as pd
 from datetime import date
+from urllib3 import Retry
 from abc import ABC, abstractmethod
 from fake_useragent import UserAgent
 from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 from utils.notify import send_message
 
@@ -131,10 +132,10 @@ class AbstractPropertyScraper(ABC):
                 session.mount('http://', adapter)
                 session.mount('https://', adapter)
                 session.headers.update(headers)
-                scraper = cfscrape.create_scraper(sess=session)
-
-                # print(scraper.get("http://httpbin.org/ip").json())
-                # print(headers)
+                scraper = cfscrape.create_scraper(
+                    sess=session,
+                    delay=20,
+                )
 
                 time.sleep(random.randint(1, 3))
                 self.html_content = scraper.get(url).text
@@ -304,6 +305,8 @@ class AbstractPropertyScraper(ABC):
             if null_percentage > 50:
                 send_message(f"{self.platform_name} Scraper",
                              f"Null values in column {column} exceed 50%!")
+            
+        send_message(f"{self.platform_name} Scraper", f"Scraping completed successfully - {len(df)}!")
 
     def run(self, debug):
         """

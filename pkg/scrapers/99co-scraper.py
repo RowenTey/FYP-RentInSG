@@ -48,7 +48,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         self.platform_name = '99.co'
         self.properties_per_page = 200
         self.pagination_element = "ul.Pagination_SearchPagination_links__0JY7B"
-        self.rental_prices_dir = f'./rental_prices/ninety_nine/'
+        self.rental_prices_dir = f'./pkg/rental_prices/ninety_nine/'
 
     def pagination(self, soup):
         pagination = soup.select_one(self.pagination_element)
@@ -84,40 +84,45 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                 'div', id='price').find('p').text.strip()
         except Exception as err:
             print(f"Error scraping price: {err}")
+            print(self.html_content)
             return {}
 
         try:
-            beds_element = soup.find('img', {'alt': 'Beds'})
-            beds = beds_element.find_next_sibling().text if beds_element else None
+            overview_items = soup.find_all(
+                'div', class_='Overview_item__2NxRA')
 
-            baths_element = soup.find('img', {'alt': 'Bath'})
-            baths = baths_element.find_next_sibling().text if baths_element else None
+            beds = baths = dimensions = None
 
-            floor_area_element = soup.find('img', {'alt': 'Floor Area'})
-            floor_area = floor_area_element.find_next_sibling(
-            ).text if floor_area_element else None
+            for item in overview_items:
+                text = item.text
+                if 'bed' in text.lower():
+                    text = text.replace(' Beds', '').replace(' Bed', '')
+                    if '+' not in text:
+                        beds = int(text.strip())
+                        continue
+
+                    num1, num2 = map(int, text.split('+'))
+                    beds = num1 + num2
+                elif 'bath' in text.lower():
+                    baths = int(text.replace(
+                        ' Baths', '').replace(' Bath', ''))
+                elif 'sqft' in text.lower():
+                    dimensions = int(text.replace(
+                        ',', '').replace(' sqft', ''))
 
             output['bedroom'] = beds
             output['bathroom'] = baths
-            output['dimensions'] = floor_area
+            output['dimensions'] = dimensions
         except Exception as err:
             print(f"Error scraping (bed,bath,sqft) info: {err}")
 
         try:
-            address_span = soup.find(
-                'p', class_="Body_body2__xKm70 Overview_address__HS_GZ Body_baseColor__nHKhc")
-            address = address_span.text.strip().split('\n')[0]
-            """ 
-            e.g "· Executive Condo for Rent\nAdmiralty / Woodlands (D25)"
-            -> Starts with "·" = no address
-            -> remove everything after the first "·" until "Rent" and strip whitespace
-            """
-            if address.startswith('·'):
-                raise Exception('Address not found')
-
-            pattern = re.compile(r'\s·.*?Rent', re.DOTALL)
-            address = re.sub(pattern, '', address)
-            output['address'] = address.strip()
+            address_element = soup.find(
+                'span', class_='Overview_text__TpBFy Overview_text__underline__tINTE')
+            address = address_element.text if address_element else None
+            address_without_postcode = address.rsplit(
+                ' ', 1)[0] if address else None
+            output['address'] = address_without_postcode
         except Exception as err:
             print(f"Error scraping address: {err}")
 
@@ -148,15 +153,20 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             print(f"Error scraping coordinates: {err}")
 
         try:
-            # Extract the nearest MRT station and distance
-            mrt_info = soup.find(
-                'p', class_='Body_body1__Mt9QN Body_baseColor__nHKhc Body_autoHeight__MovH5').text.strip()
-            # e.g: 3 mins (175 m) from Shenton Way MRT
-            distance, output['nearest_mrt'] = mrt_info.split(' from ')
+            mrt_element = soup.find('a', class_='NearestMrt_link__mpgJ2')
+            mrt = mrt_element.text if mrt_element else None
+            if mrt:
+                mrt = mrt.rsplit(' ', 1)[0]
 
-            distance_match = re.search(r'\((\d+)\s*m\)', distance)
-            output['distance_to_nearest_mrt'] = distance_match.group(
-                1) if distance_match else None
+            distance_element = soup.find_all(
+                'span', class_='NearestMrt_text__13z7n')[-1]
+            distance = distance_element.text if distance_element else None
+            if distance:
+                distance = distance.rsplit(' ', 1)[-1].replace('m', '')[1:-1]
+                distance = int(distance)
+
+            output['nearest_mrt'] = mrt
+            output['distance_to_nearest_mrt'] = distance
         except Exception as err:
             print(f"Error scraping nearest MRT: {err}")
 
@@ -181,7 +191,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                 'tr.KeyValueDescription_section__nPsI6'
             )
 
-            """ 
+            """
             e.g
             Price/sqft: $7.5 psf
             Floor Level: High
