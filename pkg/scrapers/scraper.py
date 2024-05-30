@@ -4,16 +4,13 @@ import sys
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../')))
 
-import cfscrape
 import random
-import requests
 import time
+import tls_client
 import pandas as pd
 from datetime import date
 from abc import ABC, abstractmethod
 from fake_useragent import UserAgent
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 from utils.notify import send_message
 from dotenv import load_dotenv
@@ -127,19 +124,17 @@ class AbstractPropertyScraper(ABC):
                 ua = UserAgent()
                 headers = {'User-Agent': ua.random}
 
-                session = requests.Session()
-                retry = Retry(connect=3, backoff_factor=0.5)
-                adapter = HTTPAdapter(max_retries=retry)
-                session.mount('http://', adapter)
-                session.mount('https://', adapter)
-                session.headers.update(headers)
-                scraper = cfscrape.create_scraper(sess=session)
-
                 # print(scraper.get("http://httpbin.org/ip").json())
                 # print(headers)
 
+                session = tls_client.Session(
+                    client_identifier="chrome112",
+                    random_tls_extension_order=True
+                )
+
                 time.sleep(random.randint(1, 3))
-                self.html_content = scraper.get(url).text
+                # self.html_content = scraper.get(url).text
+                self.html_content = session.get(url, headers=headers).text
                 print("=" * 75 + "\n")
 
                 soup = BeautifulSoup(self.html_content, 'html.parser')

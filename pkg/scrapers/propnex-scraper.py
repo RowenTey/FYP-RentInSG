@@ -66,6 +66,12 @@ class PropnexScraper(AbstractPropertyScraper):
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument("--log-level=3")
+        chrome_options.add_argument("window-size=1400,1500")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("start-maximized")
+        chrome_options.add_argument("enable-automation")
+        chrome_options.add_argument("--disable-infobars")
+        chrome_options.add_argument("--disable-dev-shm-usage")
 
         # Start Chrome browser
         return webdriver.Chrome(options=chrome_options)
@@ -297,13 +303,11 @@ if __name__ == "__main__":
                         help="Enable debug mode")
     args = parser.parse_args()
 
-    while True:
-        try:
-            start = time.time()
-            propnex_scraper = PropnexScraper()
-            propnex_scraper.run(debug=args.debug)
-            print(f"Time taken: {time.time() - start} seconds")
-            break
-        except Exception as err:
-            print(
-                f'Error scraping: {err.with_traceback(err.__traceback__)}\n\n, retrying...')
+    try:
+        start = time.time()
+        propnex_scraper = PropnexScraper()
+        propnex_scraper.run(debug=args.debug)
+        print(f"Time taken: {time.time() - start} seconds")
+    except Exception as err:
+        print(
+            f'Error scraping: {err.with_traceback(err.__traceback__)}\n\n, retrying...')
