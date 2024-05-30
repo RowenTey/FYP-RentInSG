@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Specify the directory path
-target_directory="/home/ec2-user/FYP-RentInSG/pkg"
+target_directory="/home/ec2-user/FYP-RentInSG/"
 
 # Change to the specified directory
 cd "$target_directory" || { echo "Failed to change to directory: $target_directory"; exit 1; }
 
 # Set log directory and file prefix
-log_directory="$target_directory/logs/s3_uploader"
+log_directory="$target_directory/pkg/logs/s3_uploader"
 log_prefix="s3_uploader"
 
 # Create log directory if it doesn't exist

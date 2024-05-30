@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Specify the directory path
-target_directory="/home/ec2-user/FYP-RentInSG/pkg"
+target_directory="/home/ec2-user/FYP-RentInSG/"
 
 # Change to the specified directory
 cd "$target_directory" || { echo "Failed to change to directory: $target_directory"; exit 1; }
 
 # Set log directory and file prefix
-log_directory="$target_directory/logs/scraper"
+log_directory="$target_directory/pkg/logs/scraper"
 log_prefix="99co-scraper"
 
 # Create log directory if it doesn't exist
