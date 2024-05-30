@@ -1,7 +1,7 @@
 import os
 import logging
 import duckdb
-from pandas import DataFrame
+from pandas import DataFrame, concat
 
 
 class MotherDuckDBConnector:
@@ -30,10 +30,10 @@ class MotherDuckDBConnector:
         self.connection.sql("USE fyp_rent_in_sg")
         self.show_tables()
 
-    def create_table_from_s3(self, s3_bucket: str, s3_filepath: str):
-        # Create table property_listing if it doesn't exist and import data from S3
+    def create_table_from_s3(self, table_name: str, s3_bucket: str, s3_filepath: str):
+        # Create table if it doesn't exist and import data from S3
         self.connection.sql(
-            f"CREATE TABLE IF NOT EXISTS property_listing AS SELECT * FROM 's3://{s3_bucket}/{s3_filepath}'")
+            f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM 's3://{s3_bucket}/{s3_filepath}'")
 
     def show_tables(self):
         # Show all tables in the database
@@ -42,6 +42,28 @@ class MotherDuckDBConnector:
     def query_df(self, query: str) -> DataFrame:
         # Run a query
         return self.connection.sql(query).df()
+
+    def query_df_in_batch(self, query: str, batch_size: int = 1000) -> DataFrame:
+        cursor = self.connection.cursor()
+        cursor.execute(query)
+
+        # Fetch rows in batches
+        rows = cursor.fetchmany(batch_size)
+        cols = [desc[0] for desc in cursor.description]
+        df = DataFrame()
+
+        # Process each batch
+        i = 0
+        while rows:
+            print(f"Processing batch... {i}")
+            df = concat([df, DataFrame(rows, columns=cols)])
+
+            # Fetch the next batch
+            rows = cursor.fetchmany(batch_size)
+            i += 1
+
+        cursor.close()
+        return df
 
     def update_table(self, table_name: str, key_col: str, updated_cols: list, df: DataFrame):
         logging.info(f"Updating table {table_name} with {len(df)} rows...")
@@ -91,3 +113,28 @@ if __name__ == "__main__":
 
     db = connect_to_motherduckdb()
     print("MotherDuckDB connection completed.")
+
+    df = db.query_df_in_batch("""
+        SELECT 
+            price,
+            bedroom,
+            bathroom,
+            dimensions,
+            floor_level,
+            furnishing,
+            facing,
+            built_year,
+            tenure,
+            property_type,
+            district_id,
+            distance_to_mrt_in_m,
+            distance_to_sch_in_m,
+            distance_to_mall_in_m,
+            distance_to_hawker_in_m,
+            distance_to_supermarket_in_m,
+            is_whole_unit,
+            has_gym,
+            has_pool
+        FROM property_listing;                          
+    """)
+    df.to_csv('training_data.csv', index=False)
