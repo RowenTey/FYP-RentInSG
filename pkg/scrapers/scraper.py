@@ -17,8 +17,6 @@ from fake_useragent import UserAgent
 from requests.adapters import HTTPAdapter
 from bs4 import BeautifulSoup
 from utils.notify import send_message
-from dotenv import load_dotenv
-load_dotenv()
 
 
 class AbstractPropertyScraper(ABC):
