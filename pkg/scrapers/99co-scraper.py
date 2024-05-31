@@ -80,11 +80,22 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         output = {col_name: None for col_name in self.COLUMNS}
 
         try:
-            output["price"] = soup.find(
-                'div', id='price').find('p').text.strip()
+            price_div = soup.find(
+                'div', id='price').find('p')
+            price = price_div.text.strip() if price_div else None
+
+            if not price:
+                price_p = soup.find(
+                    'p', class_='Heading_heading3__vJ885 Overview_text__TpBFy Overview_text__extra_bold__IdfcW Overview_text__lg__Hgcal Heading_baseColor__xWzRr')
+                price = price_p.text.strip() if price_p else None
+
+            if not price:
+                raise Exception('Price not found')
+
+            output['price'] = price
         except Exception as err:
             print(f"Error scraping price: {err}")
-            print(self.html_content)
+            print(self.html_content[0:100])
             return {}
 
         try:
@@ -96,7 +107,8 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             for item in overview_items:
                 text = item.text
                 if 'bed' in text.lower():
-                    text = text.replace(' Beds', '').replace(' Bed', '')
+                    text = text.replace(' Beds', '').replace(
+                        ' Bed', '').replace('(room)', '')
                     if '+' not in text:
                         beds = int(text.strip())
                         continue
@@ -169,17 +181,21 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             output['distance_to_nearest_mrt'] = distance
         except Exception as err:
             print(f"Error scraping nearest MRT: {err}")
+            print(mrt_element.text) if mrt_element else print(mrt_element)
+            print(distance_element.text) if distance_element else print(
+                distance_element)
 
         try:
             # Extract all facilities
             facilities = soup.find_all('div', class_='Amenities_grid__GMGLd')
             res = []
             for facility in facilities:
-                img_alt = facility.find('img')['alt']
-                res.append(img_alt)
+                img = facility.find('img')
+                if not img:
+                    continue
+                res.append(img['alt'])
 
             if not res:
-                print(facilities)
                 raise Exception('Facilities not found')
 
             output['facilities'] = res
