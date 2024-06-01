@@ -106,9 +106,11 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
 
             for item in overview_items:
                 text = item.text
-                if 'bed' in text.lower():
+                if 'room' in text.lower() and 'sqft' not in text.lower():
+                    beds = 1
+                elif 'bed' in text.lower():
                     text = text.replace(' Beds', '').replace(
-                        ' Bed', '').replace('(room)', '')
+                        ' Bed', '')
                     if '+' not in text:
                         beds = int(text.strip())
                         continue
@@ -120,7 +122,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                         ' Baths', '').replace(' Bath', ''))
                 elif 'sqft' in text.lower():
                     dimensions = int(text.replace(
-                        ',', '').replace(' sqft', ''))
+                        ',', '').replace(' sqft', '')).replace('(room)', '')
 
             output['bedroom'] = beds
             output['bathroom'] = baths
@@ -181,9 +183,6 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             output['distance_to_nearest_mrt'] = distance
         except Exception as err:
             print(f"Error scraping nearest MRT: {err}")
-            print(mrt_element.text) if mrt_element else print(mrt_element)
-            print(distance_element.text) if distance_element else print(
-                distance_element)
 
         try:
             # Extract all facilities
