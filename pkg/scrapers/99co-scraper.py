@@ -122,7 +122,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                         ' Baths', '').replace(' Bath', ''))
                 elif 'sqft' in text.lower():
                     dimensions = int(text.replace(
-                        ',', '').replace(' sqft', '')).replace('(room)', '')
+                        ',', '').replace(' sqft', '').replace('(room)', ''))
 
             output['bedroom'] = beds
             output['bathroom'] = baths
@@ -275,6 +275,11 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
 
             url = self.header + prop[1]
             prop_soup = self.fetch_html(url, False)
+            if not prop_soup:
+                print(f'Error fetching {prop[0]}, skipping...')
+                time.sleep(10)
+                continue
+
             rental_info = self.get_prop_info(prop_soup)
             if rental_info == {}:
                 continue

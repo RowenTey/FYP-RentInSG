@@ -127,7 +127,7 @@ class AbstractPropertyScraper(ABC):
                 headers = {'User-Agent': ua.random}
 
                 session = requests.Session()
-                retry = Retry(connect=5, backoff_factor=0.5)
+                retry = Retry(connect=3, backoff_factor=0.75)
                 adapter = HTTPAdapter(max_retries=retry)
                 session.mount('http://', adapter)
                 session.mount('https://', adapter)
