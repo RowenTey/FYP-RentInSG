@@ -322,4 +322,4 @@ if __name__ == "__main__":
         print(f"\nTime taken: {time.time() - start} seconds")
     except Exception as err:
         print(
-            f'Error scraping - {err.__class__.__name__}: {err}\nRetrying...')
+            f'Error scraping - {err.__class__.__name__}: {err}\n')
