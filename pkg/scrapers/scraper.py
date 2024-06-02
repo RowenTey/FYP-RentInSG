@@ -138,7 +138,9 @@ class AbstractPropertyScraper(ABC):
                 )
 
                 time.sleep(random.randint(1, 3))
-                self.html_content = scraper.get(url).text
+                response = scraper.get(url)
+                self.html_content = response.text
+                print(f"Status code: {response.status_code}")
                 print("=" * 75 + "\n")
 
                 soup = BeautifulSoup(self.html_content, 'html.parser')
@@ -170,6 +172,12 @@ class AbstractPropertyScraper(ABC):
                     exit(1)
 
                 return soup
+            return None
+        except requests.exceptions.RequestException as err:
+            print(f"Error fetching HTML: {err}")
+            if err.response:
+                print(
+                    f"Failed request status code: {err.response.status_code}")
             return None
         except Exception as err:
             print(f"Error fetching HTML: {err}")

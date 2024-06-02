@@ -122,7 +122,11 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                         ' Baths', '').replace(' Bath', ''))
                 elif 'sqft' in text.lower():
                     dimensions = int(text.replace(
-                        ',', '').replace(' sqft', '').replace('(room)', ''))
+                        ',', '').replace(
+                        ' sqft', '').replace(
+                        '(room)', '').replace(
+                        '(land)', '')
+                    )
 
             output['bedroom'] = beds
             output['bathroom'] = baths
