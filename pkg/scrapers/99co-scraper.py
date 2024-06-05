@@ -1,7 +1,10 @@
 import json
 import time
 import re
+import copy
+import logging
 import argparse
+import traceback
 import pandas as pd
 from scraper import AbstractPropertyScraper
 
@@ -38,17 +41,21 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         "28": "Seletar / Yio Chu Kang"
     }
 
-    def __init__(self,
-                 header='https://www.99.co',
-                 key='/singapore/rent',
-                 query='?query_ids=dtdistrict{district}&query_type=district&rental_type=all',
-                 ):
+    def __init__(
+        self,
+        header='https://www.99.co',
+        key='/singapore/rent',
+        query='?query_ids=dtdistrict{district}&query_type=district&rental_type=all',
+    ):
         super().__init__(header, key, query)
         self.pages_to_fetch = 15
         self.platform_name = '99.co'
-        self.properties_per_page = 200
+        self.properties_per_page = 100
         self.pagination_element = "ul.Pagination_SearchPagination_links__0JY7B"
         self.rental_prices_dir = f'./pkg/rental_prices/ninety_nine/'
+
+        self.soup = None
+        self.output = {}
 
     def pagination(self, soup):
         pagination = soup.select_one(self.pagination_element)
@@ -62,7 +69,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         except AttributeError:
             # TODO: check if this is the correct way to handle this
             if soup.find("h2", class_="name").text.split(' ')[2] == '0':
-                print('No property found. Scraping stopped.')
+                logging.warning('No property found. Scraping stopped.')
             exit(1)
         return pages
 
@@ -76,30 +83,29 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             links.append((prop_name, prop["href"]))
         return links
 
-    def get_prop_info(self, soup):
-        output = {col_name: None for col_name in self.COLUMNS}
-
+    def get_price(self) -> bool:
         try:
-            price_div = soup.find(
-                'div', id='price').find('p')
+            price_div = self.soup.find('div', id='price').find('p')
             price = price_div.text.strip() if price_div else None
 
             if not price:
-                price_p = soup.find(
+                price_p = self.soup.find(
                     'p', class_='Heading_heading3__vJ885 Overview_text__TpBFy Overview_text__extra_bold__IdfcW Overview_text__lg__Hgcal Heading_baseColor__xWzRr')
                 price = price_p.text.strip() if price_p else None
 
             if not price:
                 raise Exception('Price not found')
 
-            output['price'] = price
+            self.output['price'] = price
+            return True
         except Exception as err:
-            print(f"Error scraping price: {err}")
-            print(self.html_content[0:100])
-            return {}
+            logging.warning(f"Error scraping price: {err}")
+            logging.warning(self.html_content[0:100])
+            return False
 
+    def get_overview_items(self):
         try:
-            overview_items = soup.find_all(
+            overview_items = self.soup.find_all(
                 'div', class_='Overview_item__2NxRA')
 
             beds = baths = dimensions = None
@@ -109,8 +115,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                 if 'room' in text.lower() and 'sqft' not in text.lower():
                     beds = 1
                 elif 'bed' in text.lower():
-                    text = text.replace(' Beds', '').replace(
-                        ' Bed', '')
+                    text = text.replace(' Beds', '').replace(' Bed', '')
                     if '+' not in text:
                         beds = int(text.strip())
                         continue
@@ -128,69 +133,66 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                         '(land)', '')
                     )
 
-            output['bedroom'] = beds
-            output['bathroom'] = baths
-            output['dimensions'] = dimensions
+            self.output['bedroom'] = beds
+            self.output['bathroom'] = baths
+            self.output['dimensions'] = dimensions
         except Exception as err:
-            print(f"Error scraping (bed,bath,sqft) info: {err}")
+            logging.warning(f"Error scraping (bed,bath,sqft) info: {err}")
 
+    def get_address(self):
         try:
-            address_element = soup.find(
+            address_element = self.soup.find(
                 'span', class_='Overview_text__TpBFy Overview_text__underline__tINTE')
             address = address_element.text if address_element else None
             address_without_postcode = address.rsplit(
                 ' ', 1)[0] if address else None
-            output['address'] = address_without_postcode
+            self.output['address'] = address_without_postcode
         except Exception as err:
-            print(f"Error scraping address: {err}")
+            logging.warning(f"Error scraping address: {err}")
 
+    def get_coordinates(self):
         try:
-            # example: {\"coordinates\":{\"lat\":1.2769696206188,\"lng\":103.8535109362695}
             pattern = re.compile(
                 r'\\"coordinates\\":\{\\"lat\\":([0-9.-]+),\\"lng\\":([0-9.-]+)\}')
-
-            match = None
             match = pattern.search(self.html_content)
 
             if not match:
                 raise (Exception('Coordinates not found'))
 
-            # Extract the matched JSON string
             json_string = '{' + match.group().replace('\\', '') + '}'
-
-            # Load the JSON content
             json_data = json.loads(json_string)
 
-            # Access lat and lng values
             lat = json_data.get('coordinates', {}).get('lat')
             lng = json_data.get('coordinates', {}).get('lng')
 
-            output['latitude'] = lat
-            output['longitude'] = lng
+            self.output['latitude'] = lat
+            self.output['longitude'] = lng
         except Exception as err:
-            print(f"Error scraping coordinates: {err}")
+            logging.warning(f"Error scraping coordinates: {err}")
 
+    def get_nearest_mrt(self):
         try:
-            mrt_element = soup.find('a', class_='NearestMrt_link__mpgJ2')
+            mrt_element = self.soup.find('a', class_='NearestMrt_link__mpgJ2')
             mrt = mrt_element.text if mrt_element else None
             if mrt:
                 mrt = mrt.rsplit(' ', 1)[0]
 
-            distance_element = soup.find_all(
+            distance_element = self.soup.find_all(
                 'span', class_='NearestMrt_text__13z7n')[-1]
             distance = distance_element.text if distance_element else None
             if distance:
                 distance = distance.rsplit(' ', 1)[-1].replace('m', '')[1:-1]
                 distance = int(distance)
 
-            output['nearest_mrt'] = mrt
-            output['distance_to_nearest_mrt'] = distance
+            self.output['nearest_mrt'] = mrt
+            self.output['distance_to_nearest_mrt'] = distance
         except Exception as err:
-            print(f"Error scraping nearest MRT: {err}")
+            logging.warning(f"Error scraping nearest MRT: {err}")
 
+    def get_facilities(self):
         try:
-            # Extract all facilities
-            facilities = soup.find_all('div', class_='Amenities_grid__GMGLd')
+            facilities = self.soup.find_all(
+                'div', class_='Amenities_grid__GMGLd')
             res = []
             for facility in facilities:
                 img = facility.find('img')
@@ -201,24 +203,15 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             if not res:
                 raise Exception('Facilities not found')
 
-            output['facilities'] = res
+            self.output['facilities'] = res
         except Exception as err:
-            print(f"Error scraping facilities: {err}")
+            logging.warning(f"Error scraping facilities: {err}")
 
+    def get_property_details(self):
         try:
-            property_details_rows = soup.select(
-                'tr.KeyValueDescription_section__nPsI6'
-            )
+            property_details_rows = self.soup.select(
+                'tr.KeyValueDescription_section__nPsI6')
 
-            """
-            e.g
-            Price/sqft: $7.5 psf
-            Floor Level: High
-            Furnishing: Fully
-            Built year: 1976
-            Tenure: 99-year leasehold
-            Property type: Apartment Whole Unit
-            """
             not_included = set(['Last updated'])
             for row in property_details_rows:
                 columns = row.find_all(
@@ -231,88 +224,126 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                     if label in not_included:
                         continue
 
-                    output[NinetyNineCoScraper.to_snake_case(
+                    self.output[self.to_snake_case(
                         label)] = val.get_text(strip=True)
-
         except Exception as err:
-            print(f"Error scraping property details: {err}")
+            logging.warning(f"Error scraping property details: {err}")
 
-        return output
+    def get_prop_info(self):
+        has_price = self.get_price()
+        if not has_price:
+            return {}
+
+        self.get_overview_items()
+        self.get_address()
+        self.get_coordinates()
+        self.get_nearest_mrt()
+        self.get_facilities()
+        self.get_property_details()
+
+        logging.debug(self.output)
+        return copy.deepcopy(self.output)
 
     def scrape_rental_prices(self, district, debug):
         self.query = self.query.format(district=district)
-        print(f"Scraping {self.DISTRICTS[district]}...")
+        logging.info(f"\n\nScraping {self.DISTRICTS[district]}...\n")
 
         soup, pages = self.initial_fetch()
         if not soup:
-            print(f'Error fetching initial page, skipping...')
+            logging.info(
+                f'Error fetching initial page for {self.DISTRICTS[district]}, skipping...')
             return
+
+        self.scrape_links(soup, pages, debug)
+        self.scrape_properties(debug, district)
+
+        # reset for next run
+        self.refresh_variables()
+
+    def scrape_links(self, soup, pages, debug):
         # Scrape links from the first page for rental properties
         self.props += self.link_scraper(soup)
-        print('\rPage 1/{} done.'.format(str(pages)))
+        logging.info(f'Page 1/{pages} done.')
 
         # Scrape subsequent pages
         for page in range(2, pages + 1):
+            # only scrape 1 page in debug mode
             if debug:
                 continue
 
             soup = self.fetch_html(self.header + self.key + '/?page_num=' +
                                    str(page) + '&' + self.query[1:], True)
             if not soup:
-                print(f'Error fetching page {page}, skipping...')
+                logging.warning(f'Error fetching page {page}, skipping...')
                 continue
-            self.props += self.link_scraper(soup)
-            print('\rPage {}/{} done.'.format(str(page), str(pages)))
 
+            self.props += self.link_scraper(soup)
+            logging.info(f'Page {page}/{pages} done.')
+
+    def scrape_properties(self, debug, district):
         self.properties_per_page = self.properties_per_page if not debug else 1
 
         # Scrape rental info for each property
         rental_infos = []
-        print('\nA total of ' + str(min(self.properties_per_page, len(self.props))) +
-              ' properties will be scraped.\n')
+        logging.info('A total of ' + str(min(self.properties_per_page, len(self.props))) +
+                     ' properties will be scraped.')
 
         for i, prop in enumerate(self.props):
             # only scrape self.properties_per_page per district
             if i == self.properties_per_page:
                 break
-            print(f"Fetching {prop[0]}...")
 
-            url = self.header + prop[1]
-            prop_soup = self.fetch_html(url, False)
-            if not prop_soup:
-                print(f'Error fetching {prop[0]}, skipping...')
-                time.sleep(10)
-                continue
+            rental_info = self.scrape_property_info(prop, district)
+            if rental_info:
+                rental_infos.append(rental_info)
 
-            rental_info = self.get_prop_info(prop_soup)
-            if rental_info == {}:
-                continue
+            logging.info(str(i + 1) + '/' +
+                         str(min(self.properties_per_page, len(self.props))) + ' done!')
 
-            rental_info["property_name"] = prop[0]
-            rental_info["district"] = self.DISTRICTS[district]
-            rental_info["listing_id"] = url.split('-')[-1]
-            rental_info["url"] = url
-            rental_infos.append(rental_info)
-            print(str(i + 1) + '/' +
-                  str(min(self.properties_per_page, len(self.props))) + ' done!')
+        self.create_dataframe(rental_infos, district)
 
+    def scrape_property_info(self, prop, district):
+        logging.info(f"Fetching {prop[0]}...")
+
+        url = self.header + prop[1]
+        prop_soup = self.fetch_html(url, False)
+        if not prop_soup:
+            logging.info(f'Error fetching {prop[0]}, skipping...')
+            time.sleep(10)
+            return
+
+        self.soup = prop_soup
+        self.output = {col_name: None for col_name in self.COLUMNS}
+
+        rental_info = self.get_prop_info()
+        if rental_info == {}:
+            return
+
+        rental_info["property_name"] = prop[0]
+        rental_info["district"] = self.DISTRICTS[district]
+        rental_info["listing_id"] = url.split('-')[-1]
+        rental_info["url"] = url
+
+        # reset for next property
+        self.soup = None
+        self.output.clear()
+
+        return rental_info
+
+    def create_dataframe(self, rental_infos, district):
         df = pd.DataFrame(rental_infos)
 
         if df.empty:
-            print(f"No properties found for {self.DISTRICTS[district]}")
-            self.refresh_variables()
+            logging.info(f"No properties found for {self.DISTRICTS[district]}")
             return
 
         df = df[self.COLUMNS]
-        print(df.head())
+        logging.info(f"\n{df.head()}")
         self.output_to_csv(df)
 
-        # reset for next run
-        self.refresh_variables()
-
     def refresh_variables(self):
-        self.props = []
         self.query = '?query_ids=dtdistrict{district}&query_type=district&rental_type=all'
+        self.props = []
 
 
 if __name__ == "__main__":
@@ -324,11 +355,19 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s : %(filename)s-%(lineno)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S"
+    )
+
     try:
         start = time.time()
         ninetynine_co_scraper = NinetyNineCoScraper()
         ninetynine_co_scraper.run(debug=args.debug)
-        print(f"\nTime taken: {time.time() - start} seconds")
+        logging.info(
+            f"\nTime taken: {(time.time() - start) / 60 / 60 :.2f} hours")
     except Exception as err:
-        print(
+        traceback.print_exc()
+        logging.warning(
             f'Error scraping - {err.__class__.__name__}: {err}\n')
