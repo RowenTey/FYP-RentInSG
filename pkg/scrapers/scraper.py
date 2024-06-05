@@ -1,13 +1,13 @@
 import os
 import sys
 
-
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), '../')))
 
 import random
 import time
 import requests
+import logging
 import cloudscraper as cfscrape
 import pandas as pd
 from datetime import date
@@ -44,10 +44,9 @@ class AbstractPropertyScraper(ABC):
         scrape_rental_prices(district: str, debug: bool) -> None: Scrapes rental prices for a specific district.
         output_to_csv(df: pd.DataFrame) -> None: Outputs the scraped data to a CSV file.
         initial_fetch() -> Tuple[BeautifulSoup, int]: Fetches the initial HTML content and determines the number of pages to scrape.
-        print_title() -> None: Prints the title of the scraper.
+        logging.info_title() -> None: logging.infos the title of the scraper.
         run(debug: bool) -> None: Runs the scraper for all districts.
         to_snake_case(input_string: str) -> str: Converts a string to snake case.
-
     """
 
     DISTRICTS = {
@@ -121,59 +120,58 @@ class AbstractPropertyScraper(ABC):
 
         """
         try:
+            scraper = self.create_scraper()
+
             for trial in range(1, 21):
-                print('Loading ' + url)
-                ua = UserAgent()
-                headers = {'User-Agent': ua.random}
-
-                session = requests.Session()
-                retry = Retry(connect=3, backoff_factor=0.75)
-                adapter = HTTPAdapter(max_retries=retry)
-                session.mount('http://', adapter)
-                session.mount('https://', adapter)
-                session.headers.update(headers)
-                scraper = cfscrape.create_scraper(
-                    sess=session,
-                    delay=20,
-                )
-
-                time.sleep(random.randint(1, 3))
+                logging.info('Loading ' + url)
+                time.sleep(random.randint(1, 5))
                 self.html_content = scraper.get(url).text
-                print("=" * 75 + "\n")
+                logging.info("=" * 75)
 
                 soup = BeautifulSoup(self.html_content, 'html.parser')
 
                 if "captcha" in soup.text:
-                    print('CAPTCHA -> Retrying ' +
-                          '(' + str(trial) + '/20)...')
-                    time.sleep(0.1)
-                    self.failure_counter += 1
-
-                    # Wait 30s every 10 tries
-                    if trial % 10 == 0:
-                        print('Connection reset, retrying in 30 secs...')
-                        time.sleep(30)
+                    self.handle_retry("CAPTCHA", trial)
                     continue
-                elif has_pages and not soup.select_one(self.pagination_element):
-                    print('No pages -> Retrying ' +
-                          '(' + str(trial) + '/20)...')
-                    time.sleep(0.1)
-                    self.failure_counter += 1
 
-                    # Wait 30s every 10 tries
-                    if trial % 10 == 0:
-                        print('Connection reset, retrying in 30 secs...')
-                        time.sleep(30)
+                if has_pages and not soup.select_one(self.pagination_element):
+                    self.handle_retry("No pages", trial)
                     continue
-                elif "No Results" in soup.text:
-                    print('Invalid URL: {url}, exiting...')
+
+                if "No Results" in soup.text:
+                    logging.info(f'Invalid URL: {url}, exiting...')
                     exit(1)
 
                 return soup
+
             return None
         except Exception as err:
-            print(f"Error fetching HTML: {err}")
+            logging.info(f"Error fetching HTML: {err}")
             return None
+
+    def create_scraper(self):
+        ua = UserAgent()
+        headers = {'User-Agent': ua.random}
+
+        session = requests.Session()
+        retry = Retry(connect=3, backoff_factor=0.5)
+        adapter = HTTPAdapter(max_retries=retry)
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        session.headers.update(headers)
+        scraper = cfscrape.create_scraper(sess=session, delay=20)
+
+        return scraper
+
+    def handle_retry(self, reason, trial):
+        logging.info(f'{reason} -> Retrying ({trial}/20)...')
+        time.sleep(random.randint(1, 5))
+        self.failure_counter += 1
+
+        # Wait 30s every 10 tries
+        if trial % 10 == 0:
+            logging.info('Connection reset, retrying in 30 secs...')
+            time.sleep(30)
 
     @abstractmethod
     def pagination(self, soup):
@@ -224,7 +222,7 @@ class AbstractPropertyScraper(ABC):
 
         Args:
             district (str): The district code.
-            debug (bool): Indicates whether to print debug information.
+            debug (bool): Indicates whether to logging.info debug information.
 
         """
         pass
@@ -250,11 +248,11 @@ class AbstractPropertyScraper(ABC):
                 df.to_csv(file, index=False, header=not file_exists)
 
             if file_exists:
-                print(f'Rental prices appended to {output_path}')
+                logging.info(f'Rental prices appended to {output_path}')
             else:
-                print(f'Rental prices saved to {output_path}')
+                logging.info(f'Rental prices saved to {output_path}')
         except Exception as e:
-            print(f'Error writing to CSV: {e}')
+            logging.info(f'Error writing to CSV: {e}')
 
     def initial_fetch(self) -> tuple[BeautifulSoup, int]:
         """
@@ -266,10 +264,10 @@ class AbstractPropertyScraper(ABC):
         """
         soup = self.fetch_html(self.header + self.key + self.query, True)
         if not soup:
-            print(f'Error fetching initial page, exiting...')
+            logging.info(f'Error fetching initial page, exiting...')
             return None, None
         pages = min(self.pages_to_fetch, self.pagination(soup))
-        print(str(pages) + ' pages will be scraped.\n')
+        logging.info(str(pages) + ' pages will be scraped.')
         return soup, pages
 
     def print_title(self):
@@ -277,9 +275,10 @@ class AbstractPropertyScraper(ABC):
         Prints the title of the scraper.
 
         """
-        print(
-            f'\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n')
-        print('Job initiated with query on rental properties in Singapore.')
+        logging.info(
+            f'\n\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n')
+        logging.info(
+            'Job initiated with query on rental properties in Singapore.')
 
     def check_for_failure(self):
         if self.failure_counter >= 100:
@@ -321,7 +320,8 @@ class AbstractPropertyScraper(ABC):
         for district in self.DISTRICTS.keys():
             self.scrape_rental_prices(district, debug)
 
-        self.check_for_failure()
+        if not debug:
+            self.check_for_failure()
 
     @staticmethod
     def to_snake_case(input_string: str) -> str:
