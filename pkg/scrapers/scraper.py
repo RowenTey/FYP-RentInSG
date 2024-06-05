@@ -120,9 +120,8 @@ class AbstractPropertyScraper(ABC):
 
         """
         try:
-            scraper = self.create_scraper()
-
             for trial in range(1, 21):
+                scraper = self.create_scraper()
                 logging.info('Loading ' + url)
                 time.sleep(random.randint(1, 5))
                 self.html_content = scraper.get(url).text
@@ -144,6 +143,12 @@ class AbstractPropertyScraper(ABC):
 
                 return soup
 
+            return None
+        except requests.exceptions.RequestException as err:
+            print(f"Error fetching HTML: {err}")
+            if err.response:
+                print(
+                    f"Failed request status code: {err.response.status_code}")
             return None
         except Exception as err:
             logging.info(f"Error fetching HTML: {err}")
