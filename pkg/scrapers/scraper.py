@@ -1,21 +1,24 @@
 import os
 import sys
 
-sys.path.append(os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '../')))
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
+)
 
+import logging
 import random
 import time
-import requests
-import logging
+from abc import ABC, abstractmethod
+from datetime import date
+
 import cloudscraper as cfscrape
 import pandas as pd
-from datetime import date
-from urllib3 import Retry
-from abc import ABC, abstractmethod
+import psutil
+import requests
+from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from requests.adapters import HTTPAdapter
-from bs4 import BeautifulSoup
+from urllib3 import Retry
 from utils.notify import send_message
 
 
@@ -77,11 +80,30 @@ class AbstractPropertyScraper(ABC):
         "D25": "Admiralty / Woodlands",
         "D26": "Mandai / Upper Thomson",
         "D27": "Sembawang / Yishun",
-        "D28": "Seletar / Yio Chu Kang"
+        "D28": "Seletar / Yio Chu Kang",
     }
     COLUMNS = [
-        'property_name', 'listing_id', 'district', 'price', 'bedroom', 'bathroom', 'dimensions', 'address', 'latitude', 'longitude', 'price/sqft', 'floor_level',
-        'furnishing', 'facing', 'built_year', 'tenure', 'property_type', 'nearest_mrt', 'distance_to_nearest_mrt', 'url', 'facilities'
+        "property_name",
+        "listing_id",
+        "district",
+        "price",
+        "bedroom",
+        "bathroom",
+        "dimensions",
+        "address",
+        "latitude",
+        "longitude",
+        "price/sqft",
+        "floor_level",
+        "furnishing",
+        "facing",
+        "built_year",
+        "tenure",
+        "property_type",
+        "nearest_mrt",
+        "distance_to_nearest_mrt",
+        "url",
+        "facilities",
     ]
 
     def __init__(self, header: str, key: str, query: str):
@@ -97,13 +119,13 @@ class AbstractPropertyScraper(ABC):
         self.header = header
         self.key = key
         self.query = query
-        self.html_content = ''
-        self.platform_name = ''
+        self.html_content = ""
+        self.platform_name = ""
         self.properties_per_page = 50  # default to 50 properties per page
         self.pages_to_fetch = 10  # default to 10 pages
-        self.pagination_element = ''
-        self.property_card_listing_div_class = ''
-        self.rental_price_dir = 'rental_prices/'
+        self.pagination_element = ""
+        self.property_card_listing_div_class = ""
+        self.rental_price_dir = "rental_prices/"
         self.failure_counter = 0
         self.props = []
 
@@ -121,13 +143,15 @@ class AbstractPropertyScraper(ABC):
         """
         try:
             for trial in range(1, 21):
+                self.monitor_cpu()
                 scraper = self.create_scraper()
-                logging.info('Loading ' + url)
+
+                logging.info("Loading " + url)
                 time.sleep(random.randint(1, 5))
                 self.html_content = scraper.get(url).text
                 logging.info("=" * 75)
 
-                soup = BeautifulSoup(self.html_content, 'html.parser')
+                soup = BeautifulSoup(self.html_content, "html.parser")
 
                 if "captcha" in soup.text:
                     self.handle_retry("CAPTCHA", trial)
@@ -138,7 +162,7 @@ class AbstractPropertyScraper(ABC):
                     continue
 
                 if "No Results" in soup.text:
-                    logging.info(f'Invalid URL: {url}, exiting...')
+                    logging.info(f"Invalid URL: {url}, exiting...")
                     exit(1)
 
                 return soup
@@ -148,7 +172,8 @@ class AbstractPropertyScraper(ABC):
             print(f"Error fetching HTML: {err}")
             if err.response:
                 print(
-                    f"Failed request status code: {err.response.status_code}")
+                    f"Failed request status code: {err.response.status_code}"
+                )
             return None
         except Exception as err:
             logging.info(f"Error fetching HTML: {err}")
@@ -156,26 +181,36 @@ class AbstractPropertyScraper(ABC):
 
     def create_scraper(self):
         ua = UserAgent()
-        headers = {'User-Agent': ua.random}
+        headers = {"User-Agent": ua.random}
 
         session = requests.Session()
-        retry = Retry(connect=3, backoff_factor=0.5)
+        retry = Retry(
+            connect=3, backoff_factor=0, respect_retry_after_header=False
+        )
         adapter = HTTPAdapter(max_retries=retry)
-        session.mount('http://', adapter)
-        session.mount('https://', adapter)
+        adapter = HTTPAdapter()
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
         session.headers.update(headers)
         scraper = cfscrape.create_scraper(sess=session, delay=20)
 
         return scraper
 
     def handle_retry(self, reason, trial):
-        logging.info(f'{reason} -> Retrying ({trial}/20)...')
+        logging.info(f"{reason} -> Retrying ({trial}/20)...")
         time.sleep(random.randint(1, 5))
         self.failure_counter += 1
 
         # Wait 30s every 10 tries
         if trial % 10 == 0:
-            logging.info('Connection reset, retrying in 30 secs...')
+            logging.info("Connection reset, retrying in 30 secs...")
+            time.sleep(30)
+
+    def monitor_cpu(self):
+        cpu_usage = psutil.cpu_percent(interval=1)
+        logging.info(f"CPU usage: {cpu_usage}%")
+        if cpu_usage > 90:
+            logging.info("CPU usage is above 90%, sleeping for 30 seconds...")
             time.sleep(30)
 
     @abstractmethod
@@ -242,22 +277,25 @@ class AbstractPropertyScraper(ABC):
         """
         try:
             output_path = os.path.join(
-                self.rental_prices_dir, f'{date.today()}.csv')
+                self.rental_prices_dir, f"{date.today()}.csv"
+            )
 
             # Check if the CSV file exists
             file_exists = os.path.isfile(output_path)
 
             # Open the CSV file in append mode if it exists, otherwise in write mode
-            with open(output_path, 'a+' if file_exists else 'w', newline='') as file:
+            with open(
+                output_path, "a+" if file_exists else "w", newline=""
+            ) as file:
                 # Write the header only if the file is newly created
                 df.to_csv(file, index=False, header=not file_exists)
 
             if file_exists:
-                logging.info(f'Rental prices appended to {output_path}')
+                logging.info(f"Rental prices appended to {output_path}")
             else:
-                logging.info(f'Rental prices saved to {output_path}')
+                logging.info(f"Rental prices saved to {output_path}")
         except Exception as e:
-            logging.info(f'Error writing to CSV: {e}')
+            logging.info(f"Error writing to CSV: {e}")
 
     def initial_fetch(self) -> tuple[BeautifulSoup, int]:
         """
@@ -269,10 +307,10 @@ class AbstractPropertyScraper(ABC):
         """
         soup = self.fetch_html(self.header + self.key + self.query, True)
         if not soup:
-            logging.info(f'Error fetching initial page, exiting...')
+            logging.info("Error fetching initial page, exiting...")
             return None, None
         pages = min(self.pages_to_fetch, self.pagination(soup))
-        logging.info(str(pages) + ' pages will be scraped.')
+        logging.info(str(pages) + " pages will be scraped.")
         return soup, pages
 
     def print_title(self):
@@ -281,37 +319,49 @@ class AbstractPropertyScraper(ABC):
 
         """
         logging.info(
-            f'\n\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n')
+            f"\n\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n"
+        )
         logging.info(
-            'Job initiated with query on rental properties in Singapore.')
+            "Job initiated with query on rental properties in Singapore."
+        )
 
     def check_for_failure(self):
         if self.failure_counter >= 100:
             send_message(
-                f"{self.platform_name} Scraper", "Exceeded 100 failures, please check!")
+                f"{self.platform_name} Scraper",
+                "Exceeded 100 failures, please check!",
+            )
 
         csv_filepath = os.path.join(
-            self.rental_prices_dir, f'{date.today()}.csv')
+            self.rental_prices_dir, f"{date.today()}.csv"
+        )
         try:
             df = pd.read_csv(csv_filepath)
         except Exception as e:
             send_message(
-                f"{self.platform_name} Scraper", f"Error reading {csv_filepath} - No data for {date.today()}!")
+                f"{self.platform_name} Scraper",
+                f"Error reading {csv_filepath} - No data for {date.today()}!",
+            )
             return
 
         if df.empty:
             send_message(
-                f"{self.platform_name} Scraper", f"No data for {date.today()}!")
+                f"{self.platform_name} Scraper", f"No data for {date.today()}!"
+            )
             return
 
         for column in df.columns:
             null_percentage = df[column].isnull().sum() / len(df) * 100
             if null_percentage > 50:
-                send_message(f"{self.platform_name} Scraper",
-                             f"Null values in column {column} exceed 50%!")
+                send_message(
+                    f"{self.platform_name} Scraper",
+                    f"Null values in column {column} exceed 50%!",
+                )
 
-        send_message(f"{self.platform_name} Scraper",
-                     f"Scraping completed successfully - {len(df)}!")
+        send_message(
+            f"{self.platform_name} Scraper",
+            f"Scraping completed successfully - {len(df)}!",
+        )
 
     def run(self, debug):
         """
@@ -340,4 +390,4 @@ class AbstractPropertyScraper(ABC):
             str: The string converted to snake case.
 
         """
-        return input_string.replace(' ', '_').lower()
+        return input_string.replace(" ", "_").lower()
