@@ -168,6 +168,13 @@ class AbstractPropertyScraper(ABC):
                 return soup
 
             return None
+        except requests.exceptions.RequestException as err:
+            print(f"Error fetching HTML: {err}")
+            if err.response:
+                print(
+                    f"Failed request status code: {err.response.status_code}"
+                )
+            return None
         except Exception as err:
             logging.info(f"Error fetching HTML: {err}")
             return None
