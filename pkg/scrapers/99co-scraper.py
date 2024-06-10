@@ -53,7 +53,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         self.platform_name = "99.co"
         self.properties_per_page = 150
         self.pagination_element = "ul.Pagination_SearchPagination_links__0JY7B"
-        self.rental_prices_dir = f"./pkg/rental_prices/ninety_nine/"
+        self.rental_prices_dir = "./pkg/rental_prices/ninety_nine/"
 
         self.soup = None
         self.output = {}
