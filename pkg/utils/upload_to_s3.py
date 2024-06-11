@@ -1,11 +1,12 @@
-import os
-import boto3
-import dotenv
 import hashlib
 import json
-import pandas as pd
-from io import BytesIO
+import os
 from datetime import datetime, timedelta
+from io import BytesIO
+
+import boto3
+import dotenv
+import pandas as pd
 
 dotenv.load_dotenv()
 
@@ -21,7 +22,7 @@ def load_uploaded_hashes(hash_file_path: str) -> list[dict]:
         list[dict]: A list of hashes loaded from the file. If the file doesn't exist, an empty list is returned.
     """
     if os.path.exists(hash_file_path):
-        with open(hash_file_path, 'r') as file:
+        with open(hash_file_path, "r") as file:
             return json.load(file)
     return []
 
@@ -37,7 +38,7 @@ def save_uploaded_hashes(hash_file_path: str, uploaded_hashes: list[dict]) -> No
     Returns:
         None
     """
-    with open(hash_file_path, 'w') as file:
+    with open(hash_file_path, "w") as file:
         json.dump(uploaded_hashes, file)
 
 
@@ -52,7 +53,7 @@ def calculate_file_hash(file_path: str) -> str:
         str: The MD5 hash of the file.
     """
     md5 = hashlib.md5()
-    with open(file_path, 'rb') as file:
+    with open(file_path, "rb") as file:
         for chunk in iter(lambda: file.read(4096), b""):
             md5.update(chunk)
     return md5.hexdigest()
@@ -66,7 +67,7 @@ def parquet(df: pd.DataFrame) -> BytesIO:
     orig_close = data.close
     data.close = lambda: None
     try:
-        df.to_parquet(data, compression='gzip', index=False)
+        df.to_parquet(data, compression="gzip", index=False)
     finally:
         data.close = orig_close
 
@@ -91,7 +92,7 @@ def convert_csv_to_parquet_and_upload(csv_file_path: str, s3_client, bucket_name
     parquet_bytes.seek(0)  # Reset the buffer position to the start
     s3_client.upload_fileobj(parquet_bytes, bucket_name, s3_file_path)
     print(
-        f'File uploaded: {csv_file_path} to s3://{bucket_name}/{s3_file_path}')
+        f"File uploaded: {csv_file_path} to s3://{bucket_name}/{s3_file_path}")
     parquet_bytes.close()
 
 
@@ -107,16 +108,17 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
         None
     """
     # Set your AWS credentials
-    aws_access_key_id = os.environ.get('AWS_ACCESS_KEY_ID')
-    aws_secret_access_key = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    aws_region = 'ap-southeast-1'
+    aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
+    aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    aws_region = "ap-southeast-1"
 
     # Create an S3 client
-    s3 = boto3.client('s3',
-                      aws_access_key_id=aws_access_key_id,
-                      aws_secret_access_key=aws_secret_access_key,
-                      region_name=aws_region
-                      )
+    s3 = boto3.client(
+        "s3",
+        aws_access_key_id=aws_access_key_id,
+        aws_secret_access_key=aws_secret_access_key,
+        region_name=aws_region,
+    )
 
     # Load previously uploaded hashes with timestamps
     uploaded_hashes: list = load_uploaded_hashes(HASH_FILE_PATH)
@@ -125,14 +127,14 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
     current_time = datetime.now()
     updated_hashes, outdated_hashes = [], []
     for entry in uploaded_hashes:
-        timestamp = datetime.strptime(entry['timestamp'], DATETIME_FORMAT)
+        timestamp = datetime.strptime(entry["timestamp"], DATETIME_FORMAT)
         if current_time - timestamp < timedelta(days=MAX_AGE_DAYS):
             updated_hashes.append(entry)
         else:
             outdated_hashes.append(entry)
 
-    updated_hashes_set: set = set(entry['hash'] for entry in updated_hashes)
-    outdated_hashes_set: set = set(entry['hash'] for entry in outdated_hashes)
+    updated_hashes_set: set = set(entry["hash"] for entry in updated_hashes)
+    outdated_hashes_set: set = set(entry["hash"] for entry in outdated_hashes)
 
     # List all files in the local directory
     for root, _, files in os.walk(local_directory):
@@ -140,10 +142,10 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
             local_file_path = os.path.join(root, file)
             # Enforcing the format rental_prices/ninety_nine/*.csv
             s3_file_path = os.path.join(
-                root, file).replace(os.path.sep, '/')[2:]
+                root, file).replace(os.path.sep, "/")[2:]
 
             # handle case where s3_file_path starts with '/' due to os.path.sep between Windows and Linux
-            if s3_file_path.startswith('/'):
+            if s3_file_path.startswith("/"):
                 s3_file_path = s3_file_path[1:]
 
             # Calculate the hash of the local file
@@ -152,7 +154,7 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
             # Check if the file has been uploaded (based on hash)
             if file_hash in updated_hashes_set:
                 print(
-                    f'Skipping upload for {local_file_path} (already uploaded)')
+                    f"Skipping upload for {local_file_path} (already uploaded)")
                 continue
             elif file_hash in outdated_hashes_set:
                 print(
@@ -167,7 +169,7 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
 
             # Add the hash with timestamp to the list of uploaded hashes
             updated_hashes.append(
-                {'hash': file_hash, 'timestamp': current_time.strftime(DATETIME_FORMAT)})
+                {"hash": file_hash, "timestamp": current_time.strftime(DATETIME_FORMAT)})
             updated_hashes_set.add(file_hash)
 
     # Save updated hashes to the file
@@ -175,15 +177,15 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
 
 
 if __name__ == "__main__":
-    HASH_FILE_PATH = './logs/s3_uploader/uploaded_hashes.json'
+    HASH_FILE_PATH = ".pkg/logs/s3_uploader/uploaded_hashes.json"
     MAX_AGE_DAYS = 10  # Adjust as needed
-    DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
+    DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
     # Specify the local directory containing CSV files
-    local_directory = './rental_prices/ninety_nine'
+    local_directory = "./rental_prices/ninety_nine"
 
     # Specify the S3 bucket name
-    bucket_name = os.getenv('S3_BUCKET')
+    bucket_name = os.getenv("S3_BUCKET")
 
     # Call the function to upload files to S3
     upload_files_to_s3(local_directory, bucket_name)
