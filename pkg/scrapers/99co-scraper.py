@@ -51,7 +51,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         super().__init__(header, key, query)
         self.pages_to_fetch = 15
         self.platform_name = "99.co"
-        self.properties_per_page = 150
+        self.properties_per_page = 200
         self.pagination_element = "ul.Pagination_SearchPagination_links__0JY7B"
         self.rental_prices_dir = "./pkg/rental_prices/ninety_nine/"
 
@@ -108,8 +108,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
     def get_overview_items(self):
         try:
             overview_items = self.soup.find_all(
-                "div", class_="Overview_item__2NxRA"
-            )
+                "div", class_="Overview_item__2NxRA")
 
             beds = baths = dimensions = None
 
@@ -127,13 +126,17 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                     beds = num1 + num2
                 elif "bath" in text.lower():
                     baths = int(
-                        text.replace(" Baths", "").replace(" Bath", "")
+                        text
+                        .replace(" Baths", "")
+                        .replace(" Bath", "")
                     )
                 elif "sqft" in text.lower():
                     dimensions = int(
-                        text.replace(",", "")
+                        text
+                        .replace(",", "")
                         .replace(" sqft", "")
                         .replace("(room)", "")
+                        .replace("(land)", "")
                     )
 
             self.output["bedroom"] = beds
@@ -149,9 +152,8 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                 class_="Overview_text__TpBFy Overview_text__underline__tINTE",
             )
             address = address_element.text if address_element else None
-            address_without_postcode = (
-                address.rsplit(" ", 1)[0] if address else None
-            )
+            address_without_postcode = address.rsplit(
+                " ", 1)[0] if address else None
             self.output["address"] = address_without_postcode
         except Exception as err:
             logging.warning(f"Error scraping address: {err}")
@@ -159,8 +161,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
     def get_coordinates(self):
         try:
             pattern = re.compile(
-                r'\\"coordinates\\":\{\\"lat\\":([0-9.-]+),\\"lng\\":([0-9.-]+)\}'
-            )
+                r'\\"coordinates\\":\{\\"lat\\":([0-9.-]+),\\"lng\\":([0-9.-]+)\}')
             match = pattern.search(self.html_content)
 
             if not match:
@@ -185,8 +186,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                 mrt = mrt.rsplit(" ", 1)[0]
 
             distance_element = self.soup.find_all(
-                "span", class_="NearestMrt_text__13z7n"
-            )[-1]
+                "span", class_="NearestMrt_text__13z7n")[-1]
             distance = distance_element.text if distance_element else None
             if distance:
                 distance = distance.rsplit(" ", 1)[-1].replace("m", "")[1:-1]
@@ -200,8 +200,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
     def get_facilities(self):
         try:
             facilities = self.soup.find_all(
-                "div", class_="Amenities_grid__GMGLd"
-            )
+                "div", class_="Amenities_grid__GMGLd")
             res = []
             for facility in facilities:
                 img = facility.find("img")
@@ -219,26 +218,22 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
     def get_property_details(self):
         try:
             property_details_rows = self.soup.select(
-                "tr.KeyValueDescription_section__nPsI6"
-            )
+                "tr.KeyValueDescription_section__nPsI6")
 
             not_included = set(["Last updated"])
             for row in property_details_rows:
                 columns = row.find_all(
-                    "td", class_="KeyValueDescription_label__ZTXLo"
-                )
+                    "td", class_="KeyValueDescription_label__ZTXLo")
                 values = row.find_all(
-                    "td", class_="KeyValueDescription_text__wDVAb"
-                )
+                    "td", class_="KeyValueDescription_text__wDVAb")
 
                 for col, val in zip(columns, values):
                     label = col.get_text(strip=True)
                     if label in not_included:
                         continue
 
-                    self.output[self.to_snake_case(label)] = val.get_text(
-                        strip=True
-                    )
+                    self.output[self.to_snake_case(
+                        label)] = val.get_text(strip=True)
         except Exception as err:
             logging.warning(f"Error scraping property details: {err}")
 
@@ -264,8 +259,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         soup, pages = self.initial_fetch()
         if not soup:
             logging.info(
-                f"Error fetching initial page for {self.DISTRICTS[district]}, skipping..."
-            )
+                f"Error fetching initial page for {self.DISTRICTS[district]}, skipping...")
             return
 
         self.scrape_links(soup, pages, debug)
@@ -286,12 +280,8 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                 continue
 
             soup = self.fetch_html(
-                self.header
-                + self.key
-                + "/?page_num="
-                + str(page)
-                + "&"
-                + self.query[1:],
+                self.header + self.key + "/?page_num=" +
+                str(page) + "&" + self.query[1:],
                 True,
             )
             if not soup:
@@ -307,9 +297,8 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
         # Scrape rental info for each property
         rental_infos = []
         logging.info(
-            "A total of "
-            + str(min(self.properties_per_page, len(self.props)))
-            + " properties will be scraped."
+            "A total of " + str(min(self.properties_per_page,
+                                len(self.props))) + " properties will be scraped."
         )
 
         for i, prop in enumerate(self.props):
@@ -322,11 +311,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
                 rental_infos.append(rental_info)
 
             logging.info(
-                str(i + 1)
-                + "/"
-                + str(min(self.properties_per_page, len(self.props)))
-                + " done!"
-            )
+                str(i + 1) + "/" + str(min(self.properties_per_page, len(self.props))) + " done!")
 
         self.create_dataframe(rental_infos, district)
 
@@ -376,9 +361,8 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-d", "--debug", action="store_true", help="Enable debug mode"
-    )
+    parser.add_argument("-d", "--debug", action="store_true",
+                        help="Enable debug mode")
     args = parser.parse_args()
 
     from dotenv import load_dotenv
@@ -396,8 +380,7 @@ if __name__ == "__main__":
         ninetynine_co_scraper = NinetyNineCoScraper()
         ninetynine_co_scraper.run(debug=args.debug)
         logging.info(
-            f"\nTime taken: {(time.time() - start) / 60 / 60 :.2f} hours"
-        )
+            f"\nTime taken: {(time.time() - start) / 60 / 60 :.2f} hours")
     except Exception as err:
         traceback.print_exc()
         logging.warning(f"Error scraping - {err.__class__.__name__}: {err}\n")

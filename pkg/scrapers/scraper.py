@@ -1,9 +1,8 @@
 import os
 import sys
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "../"))
-)
+sys.path.append(os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "../")))
 
 import logging
 import random
@@ -146,7 +145,6 @@ class AbstractPropertyScraper(ABC):
         try:
             for trial in range(1, 21):
                 self.monitor_cpu()
-                # scraper = self.create_scraper()
                 scraper = self.session
 
                 logging.info("Loading " + url)
@@ -175,8 +173,7 @@ class AbstractPropertyScraper(ABC):
             print(f"Error fetching HTML: {err}")
             if err.response:
                 print(
-                    f"Failed request status code: {err.response.status_code}"
-                )
+                    f"Failed request status code: {err.response.status_code}")
             return None
         except Exception as err:
             logging.info(f"Error fetching HTML: {err}")
@@ -187,9 +184,8 @@ class AbstractPropertyScraper(ABC):
         headers = {"User-Agent": ua.random}
 
         session = requests.Session()
-        retry = Retry(
-            connect=3, backoff_factor=1, respect_retry_after_header=False
-        )
+        retry = Retry(connect=3, backoff_factor=1,
+                      respect_retry_after_header=False)
         adapter = HTTPAdapter(max_retries=retry)
         adapter = HTTPAdapter()
         session.mount("http://", adapter)
@@ -281,16 +277,13 @@ class AbstractPropertyScraper(ABC):
         """
         try:
             output_path = os.path.join(
-                self.rental_prices_dir, f"{date.today()}.csv"
-            )
+                self.rental_prices_dir, f"{date.today()}.csv")
 
             # Check if the CSV file exists
             file_exists = os.path.isfile(output_path)
 
             # Open the CSV file in append mode if it exists, otherwise in write mode
-            with open(
-                output_path, "a+" if file_exists else "w", newline=""
-            ) as file:
+            with open(output_path, "a+" if file_exists else "w", newline="") as file:
                 # Write the header only if the file is newly created
                 df.to_csv(file, index=False, header=not file_exists)
 
@@ -326,8 +319,7 @@ class AbstractPropertyScraper(ABC):
             f"\n\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n"
         )
         logging.info(
-            "Job initiated with query on rental properties in Singapore."
-        )
+            "Job initiated with query on rental properties in Singapore.")
 
     def check_for_failure(self):
         if self.failure_counter >= 100:
@@ -337,8 +329,7 @@ class AbstractPropertyScraper(ABC):
             )
 
         csv_filepath = os.path.join(
-            self.rental_prices_dir, f"{date.today()}.csv"
-        )
+            self.rental_prices_dir, f"{date.today()}.csv")
         try:
             df = pd.read_csv(csv_filepath)
         except Exception:
@@ -349,9 +340,8 @@ class AbstractPropertyScraper(ABC):
             return
 
         if df.empty:
-            send_message(
-                f"{self.platform_name} Scraper", f"No data for {date.today()}!"
-            )
+            send_message(f"{self.platform_name} Scraper",
+                         f"No data for {date.today()}!")
             return
 
         for column in df.columns:
