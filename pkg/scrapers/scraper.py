@@ -127,7 +127,9 @@ class AbstractPropertyScraper(ABC):
         self.property_card_listing_div_class = ""
         self.rental_price_dir = "rental_prices/"
         self.failure_counter = 0
+        self.cpu_threshold = 80
         self.props = []
+        self.session = self.create_scraper()
 
     def fetch_html(self, url: str, has_pages: bool) -> BeautifulSoup:
         """
@@ -144,7 +146,8 @@ class AbstractPropertyScraper(ABC):
         try:
             for trial in range(1, 21):
                 self.monitor_cpu()
-                scraper = self.create_scraper()
+                # scraper = self.create_scraper()
+                scraper = self.session
 
                 logging.info("Loading " + url)
                 time.sleep(random.randint(1, 5))
@@ -185,7 +188,7 @@ class AbstractPropertyScraper(ABC):
 
         session = requests.Session()
         retry = Retry(
-            connect=3, backoff_factor=0, respect_retry_after_header=False
+            connect=3, backoff_factor=1, respect_retry_after_header=False
         )
         adapter = HTTPAdapter(max_retries=retry)
         adapter = HTTPAdapter()
@@ -209,8 +212,9 @@ class AbstractPropertyScraper(ABC):
     def monitor_cpu(self):
         cpu_usage = psutil.cpu_percent(interval=1)
         logging.info(f"CPU usage: {cpu_usage}%")
-        if cpu_usage > 90:
-            logging.info("CPU usage is above 90%, sleeping for 30 seconds...")
+        if cpu_usage > self.cpu_threshold:
+            logging.info(
+                f"CPU usage is above {self.cpu_threshold}%, sleeping for 30 seconds...")
             time.sleep(30)
 
     @abstractmethod
@@ -337,7 +341,7 @@ class AbstractPropertyScraper(ABC):
         )
         try:
             df = pd.read_csv(csv_filepath)
-        except Exception as e:
+        except Exception:
             send_message(
                 f"{self.platform_name} Scraper",
                 f"Error reading {csv_filepath} - No data for {date.today()}!",
