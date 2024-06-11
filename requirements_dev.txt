@@ -34,6 +34,7 @@ fiona==1.9.5
 flake8==6.0.0
 fsspec==2024.2.0
 geopandas==0.14.2
+geopy==2.4.1
 h11==0.14.0
 identify==2.5.33
 idna==3.6
