@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ -z "$1" ]; then
+  echo "Usage: $0 <telegram-token> <chat-id>"
+  exit 1
+fi
+
 # Function to stop and remove a container with a specific name
 cleanup_specific_container() {
   container_name=$1
@@ -22,6 +27,8 @@ run_container() {
   
   docker run -d \
     --name $container_name \
+    -e TELEGRAM_TOKEN=$1 \
+    -e TELEGRAM_CHAT_ID=$2 \
     -v /home/ubuntu/FYP-RentInSG/pkg/logs/scraper:/app/pkg/logs/scraper \
     -v /home/ubuntu/FYP-RentInSG/pkg/rental_prices/propnex:/app/pkg/rental_prices/propnex \
     rowentey/fyp-rent-in-sg:propnex-scraper-latest
@@ -36,4 +43,4 @@ cleanup_specific_container $container_name
 echo "Running the specific Docker container..."
 run_container $container_name
 
-echo "Done."
+echo "Done"

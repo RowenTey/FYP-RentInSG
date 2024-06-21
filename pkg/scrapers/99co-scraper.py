@@ -11,36 +11,8 @@ from scraper import AbstractPropertyScraper
 
 
 class NinetyNineCoScraper(AbstractPropertyScraper):
-    DISTRICTS = {
-        "01": "Boat Quay / Raffles Place / Marina",
-        "02": "Chinatown / Tanjong Pagar",
-        "03": "Alexandra / Commonwealth",
-        "04": "Harbourfront / Telok Blangah",
-        "05": "Buona Vista / West Coast / Clementi",
-        "06": "City Hall / Clarke Quay",
-        "07": "Beach Road / Bugis / Rochor",
-        "08": "Farrer Park / Serangoon Rd",
-        "09": "Orchard / River Valley",
-        "10": "Tanglin / Holland",
-        "11": "Newton / Novena",
-        "12": "Balestier / Toa Payoh",
-        "13": "Macpherson / Potong Pasir",
-        "14": "Eunos / Geylang / Paya Lebar",
-        "15": "East Coast / Marine Parade",
-        "16": "Bedok / Upper East Coast",
-        "17": "Changi Airport / Changi Village",
-        "18": "Pasir Ris / Tampines",
-        "19": "Hougang / Punggol / Sengkang",
-        "20": "Ang Mo Kio / Bishan / Thomson",
-        "21": "Clementi Park / Upper Bukit Timah",
-        "22": "Boon Lay / Jurong / Tuas",
-        "23": "Bukit Batok / Bukit Panjang / Choa Chu Kang",
-        "24": "Lim Chu Kang / Tengah",
-        "25": "Admiralty / Woodlands",
-        "26": "Mandai / Upper Thomson",
-        "27": "Sembawang / Yishun",
-        "28": "Seletar / Yio Chu Kang",
-    }
+    DISTRICTS = {f"{key[1:]}": value for key,
+                 value in AbstractPropertyScraper.DISTRICTS.items()}
 
     def __init__(
         self,
