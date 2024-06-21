@@ -144,6 +144,8 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
             s3_file_path = os.path.join(
                 root, file).replace(os.path.sep, "/")[2:]
 
+	    s3_file_path = s3_file_path.replace("/pkg/", "")
+
             # handle case where s3_file_path starts with '/' due to os.path.sep between Windows and Linux
             if s3_file_path.startswith("/"):
                 s3_file_path = s3_file_path[1:]
@@ -177,12 +179,12 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
 
 
 if __name__ == "__main__":
-    HASH_FILE_PATH = ".pkg/logs/s3_uploader/uploaded_hashes.json"
+    HASH_FILE_PATH = "./pkg/logs/s3_uploader/uploaded_hashes.json"
     MAX_AGE_DAYS = 10  # Adjust as needed
     DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
     # Specify the local directory containing CSV files
-    local_directory = "./rental_prices/ninety_nine"
+    local_directory = "./pkg/rental_prices/ninety_nine"
 
     # Specify the S3 bucket name
     bucket_name = os.getenv("S3_BUCKET")

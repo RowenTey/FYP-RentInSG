@@ -23,12 +23,12 @@ run_container() {
   docker run -d \
     --name $container_name \
     -v /home/ubuntu/FYP-RentInSG/pkg/logs/scraper:/app/pkg/logs/scraper \
-    -v /home/ubuntu/FYP-RentInSG/pkg/rental_prices/ninety_nine:/app/pkg/rental_prices/ninety_nine \
-    rowentey/fyp-rent-in-sg:99co-scraper-latest
+    -v /home/ubuntu/FYP-RentInSG/pkg/rental_prices/propnex:/app/pkg/rental_prices/propnex \
+    rowentey/fyp-rent-in-sg:propnex-scraper-latest
 }
 
 # Main script execution
-container_name="99co-scraper" 
+container_name="propnex-scraper" 
 
 echo "Cleaning up container: $container_name..."
 cleanup_specific_container $container_name

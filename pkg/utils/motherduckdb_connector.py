@@ -110,7 +110,8 @@ if __name__ == "__main__":
 
     db = connect_to_motherduckdb()
     print("MotherDuckDB connection completed.")
-
+    
+    '''
     df = db.query_df_in_batch("""
         SELECT 
             price,
@@ -134,4 +135,5 @@ if __name__ == "__main__":
             has_pool
         FROM property_listing;                          
     """)
-    df.to_csv('training_data.csv', index=False)
+    '''
+    # df.to_csv('training_data.csv', index=False)
