@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Specify the directory path
-target_directory="/home/ec2-user/FYP-RentInSG/"
+target_directory="/home/ubuntu/FYP-RentInSG/"
 
 # Change to the specified directory
 cd "$target_directory" || { echo "Failed to change to directory: $target_directory"; exit 1; }

@@ -579,7 +579,7 @@ if __name__ == '__main__':
 
     KEEP_FILE_THRESHOLD = 5
 
-    with open('logs/transformer/last_transformed_date.log', 'r') as file:
+    with open('./pkg/logs/transformer/last_transformed_date.log', 'r') as file:
         LAST_TRANSFORMED_DATE = file.read().strip()
 
     db = connect_to_motherduckdb()
@@ -603,7 +603,7 @@ if __name__ == '__main__':
                 logging.info(f"Skipping {filename}...")
 
         if not args.debug:
-            with open('logs/transformer/last_transformed_date.log', 'w') as file:
+            with open('./pkg/logs/transformer/last_transformed_date.log', 'w') as file:
                 file.write(today)
     except Exception as e:
         logging.error(f"{e.__class__.__name__}: {e}")
@@ -613,7 +613,7 @@ if __name__ == '__main__':
                      f"Transformer failed: {e.__class__.__name__} - {e}")
 
         if prev_date:
-            with open('logs/transformer/last_transformed_date.log', 'w') as file:
+            with open('./pkg/logs/transformer/last_transformed_date.log', 'w') as file:
                 file.write(prev_date)
     finally:
         db.close()
