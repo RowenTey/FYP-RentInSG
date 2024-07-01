@@ -1,48 +1,58 @@
 import argparse
+import asyncio
 import os
 import sys
 
 sys.path.append(os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '../')))
+    os.path.join(os.path.dirname(__file__), "../")))
 
-import re
-import boto3
 import logging
-import pandas as pd
-import geopandas as gpd
-from shapely import wkt
-from typing import Tuple
-from datetime import datetime
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+from typing import Tuple
+
+import boto3
+import geopandas as gpd
+import pandas as pd
+from shapely import wkt
 from transformers.db_constants import *
-from utils.location_constants import *
-from utils.find_closest import find_nearest
 from utils.coordinates import fetch_coordinates
+from utils.find_closest import find_nearest
+from utils.location_constants import *
+from utils.motherduckdb_connector import MotherDuckDBConnector, connect_to_motherduckdb
+from utils.notify import send_message
 from utils.parse_geojson import get_district
 from utils.read_df_from_s3 import read_df_from_s3
-from utils.notify import send_message
-from utils.motherduckdb_connector import MotherDuckDBConnector, connect_to_motherduckdb
+
+"""
+IMplement the following:
+- transaction management
+"""
 
 # Global vars to store 1 time info -> prevent multiple fetches
-MRT_INFO, HAWKER_INFO, SUPERMARKET_INFO, PRIMARY_SCHOOL_INFO, MALL_INFO = None, None, None, None, None
-
-
-MRT_INFO, HAWKER_INFO, SUPERMARKET_INFO, PRIMARY_SCHOOL_INFO, MALL_INFO = None, None, None, None, None
+MRT_INFO, HAWKER_INFO, SUPERMARKET_INFO, PRIMARY_SCHOOL_INFO, MALL_INFO = (
+    None,
+    None,
+    None,
+    None,
+    None,
+)
 
 
 def update_coord_w_building_name(df, building_map) -> Tuple[pd.DataFrame, dict]:
     # Locate rows with null lat and long
-    df_null_coords = df[(df['latitude'].isnull()) & (df['longitude'].isnull())]
-    building_names = df_null_coords['building_name'].unique()
+    df_null_coords = df[(df["latitude"].isnull()) & (df["longitude"].isnull())]
+    building_names = df_null_coords["building_name"].unique()
 
     # Fill from building map first
     building_names_duplicate = [
         name for name in building_names if name in building_map]
     for building_name in building_names_duplicate:
-        df.loc[df['building_name'] == building_name,
-               'latitude'] = building_map[building_name][0]
-        df.loc[df['building_name'] == building_name,
-               'longitude'] = building_map[building_name][1]
+        df.loc[df["building_name"] == building_name,
+               "latitude"] = building_map[building_name][0]
+        df.loc[df["building_name"] == building_name,
+               "longitude"] = building_map[building_name][1]
 
     building_names_to_fetch = [
         name for name in building_names if name not in building_map]
@@ -58,18 +68,17 @@ def update_coord_w_building_name(df, building_map) -> Tuple[pd.DataFrame, dict]:
 
             building_name, coords = result
             building_map[building_name] = coords
-            df.loc[df['building_name'] ==
-                   building_name, 'latitude'] = coords[0]
-            df.loc[df['building_name'] ==
-                   building_name, 'longitude'] = coords[1]
+            df.loc[df["building_name"] == building_name, "latitude"] = coords[0]
+            df.loc[df["building_name"] ==
+                   building_name, "longitude"] = coords[1]
 
     return df, building_map
 
 
 def update_coord_w_address(df):
     # Locate rows with null lat and long
-    df_null_coords = df[(df['latitude'].isnull()) & (df['longitude'].isnull())]
-    addresses = df_null_coords['address'].unique()
+    df_null_coords = df[(df["latitude"].isnull()) & (df["longitude"].isnull())]
+    addresses = df_null_coords["address"].unique()
 
     with ThreadPoolExecutor() as executor:
         logging.info(
@@ -82,10 +91,8 @@ def update_coord_w_address(df):
                 continue
 
             address, coords = result
-            df.loc[df['address'] ==
-                   address, 'latitude'] = coords[0]
-            df.loc[df['address'] ==
-                   address, 'longitude'] = coords[1]
+            df.loc[df["address"] == address, "latitude"] = coords[0]
+            df.loc[df["address"] == address, "longitude"] = coords[1]
 
     return df
 
@@ -95,7 +102,7 @@ def fetch_mrt_info(db: MotherDuckDBConnector):
 
     logging.info(f"mrt_info: \n{df2.head()}\n")
 
-    df2 = df2[['station_name', 'latitude', 'longitude']]
+    df2 = df2[["station_name", "latitude", "longitude"]]
     return df2
 
 
@@ -104,7 +111,7 @@ def fetch_hawker_info(db: MotherDuckDBConnector):
 
     logging.info(f"hawker_centre_info: \n{df2.head()}\n")
 
-    df2 = df2[['name', 'latitude', 'longitude']]
+    df2 = df2[["name", "latitude", "longitude"]]
     return df2
 
 
@@ -113,7 +120,7 @@ def fetch_supermarket_info(db: MotherDuckDBConnector):
 
     logging.info(f"supermarket_info: \n{df2.head()}\n")
 
-    df2 = df2[['name', 'latitude', 'longitude']]
+    df2 = df2[["name", "latitude", "longitude"]]
     return df2
 
 
@@ -122,7 +129,7 @@ def fetch_primary_school_info(db: MotherDuckDBConnector):
 
     logging.info(f"primary_school_info: \n{df2.head()}\n")
 
-    df2 = df2[['name', 'latitude', 'longitude']]
+    df2 = df2[["name", "latitude", "longitude"]]
     return df2
 
 
@@ -131,7 +138,7 @@ def fetch_mall_info(db: MotherDuckDBConnector):
 
     logging.info(f"mall_info: \n{df2.head()}\n")
 
-    df2 = df2[['name', 'latitude', 'longitude']]
+    df2 = df2[["name", "latitude", "longitude"]]
     return df2
 
 
@@ -166,7 +173,11 @@ def update_supermarket(db: MotherDuckDBConnector, df):
     SUPERMARKET_INFO = fetch_supermarket_info(
         db) if SUPERMARKET_INFO is None else SUPERMARKET_INFO
     df_null_supermarket = find_nearest(
-        df_null_supermarket, SUPERMARKET_INFO, "nearest_supermarket", "distance_to_nearest_supermarket")
+        df_null_supermarket,
+        SUPERMARKET_INFO,
+        "nearest_supermarket",
+        "distance_to_nearest_supermarket",
+    )
     df.update(df_null_supermarket)
 
     return df
@@ -200,35 +211,35 @@ def update_mall(db: MotherDuckDBConnector, df):
 def simplify_lease_type(lease_type):
     if pd.isnull(lease_type):
         return None
-    elif 'leasehold' in lease_type:
-        return 'leasehold'
+    elif "leasehold" in lease_type:
+        return "leasehold"
     else:
-        return 'freehold'
+        return "freehold"
 
 
 def simplify_property_type(property_type):
     if pd.isnull(property_type):
         return None
-    elif 'Condo' in property_type:
-        if 'Executive' in property_type:
-            return 'Executive Condo'
-        return 'Condo'
-    elif 'HDB' in property_type:
-        if 'Executive' in property_type:
-            return 'Executive HDB'
-        return 'HDB'
-    elif 'Apartment' in property_type:
-        if 'Executive' in property_type:
-            return 'Executive Condo'
-        return 'Condo'
-    elif 'Walk-up' in property_type:
-        return 'Walk-up'
-    elif 'Bungalow' in property_type:
-        return 'Bungalow'
-    elif 'Land' in property_type:
-        return 'Landed'
-    elif 'Cluster House' in property_type:
-        return 'Cluster House'
+    elif "Condo" in property_type:
+        if "Executive" in property_type:
+            return "Executive Condo"
+        return "Condo"
+    elif "HDB" in property_type:
+        if "Executive" in property_type:
+            return "Executive HDB"
+        return "HDB"
+    elif "Apartment" in property_type:
+        if "Executive" in property_type:
+            return "Executive Condo"
+        return "Condo"
+    elif "Walk-up" in property_type:
+        return "Walk-up"
+    elif "Bungalow" in property_type:
+        return "Bungalow"
+    elif "Land" in property_type:
+        return "Landed"
+    elif "Cluster House" in property_type:
+        return "Cluster House"
 
     return property_type.strip()
 
@@ -236,14 +247,16 @@ def simplify_property_type(property_type):
 def extract_num_price(x):
     if not x:
         return ""
-    res = re.findall(r'\d[\d,]*', x)
+    res = re.findall(r"\d[\d,]*", x)
     return res[0] if res else ""
 
 
 def extract_num_bedroom(x):
     if not x:
         return "0"
-    res = re.findall(r'\d[\d,]*', x)
+    if isinstance(x, float):
+        x = str(x)
+    res = re.findall(r"\d[\d,]*", x)
     if not res:
         return "1"
     return res[0]
@@ -252,21 +265,26 @@ def extract_num_bedroom(x):
 def extract_num(x):
     if not x:
         return None
-    res = re.findall(r'\d[\d,]*', x)
+    if isinstance(x, float):
+        x = str(x)
+    res = re.findall(r"\d[\d,]*", x)
     return res[0] if res else None
 
 
 def update_room_rental_properties(df):
-    indexes = df.loc[(df['property_name'].str.contains(
-        'Room', case=False))].index
-    df.loc[indexes, 'is_whole_unit'] = False
-    df.loc[indexes, 'bedroom'] = 1
+    # TODO: find out why bathroom is still set as 0
+    indexes = df.loc[(df["property_name"].str.contains(
+        "Room", case=False))].index
+    df.loc[indexes, "is_whole_unit"] = False
+    df.loc[indexes, "bedroom"] = 1
     # Assume 1 bathroom for room rental
-    df.loc[indexes, 'bathroom'] = 1
+    df.loc[indexes, "bathroom"] = 1
+    logging.debug(
+        df.loc[indexes, ["property_name", "bedroom", "bathroom", "is_whole_unit"]])
 
-    indexes = df.loc[(df['property_name'].str.contains(
-        'Studio', case=False))].index
-    df.loc[indexes, 'bedroom'] = 1
+    indexes = df.loc[(df["property_name"].str.contains(
+        "Studio", case=False))].index
+    df.loc[indexes, "bedroom"] = 1
     return df
 
 
@@ -294,24 +312,28 @@ def augment_df_w_add_info(db: MotherDuckDBConnector, df):
 
 
 def set_metadata(date: str, df):
-    df['source'] = 'ninety_nine'
-    df['scraped_on'] = datetime.strptime(date, '%Y-%m-%d')
-    df['last_updated'] = df['scraped_on']
+    df["source"] = "ninety_nine"
+    df["scraped_on"] = datetime.strptime(date, "%Y-%m-%d")
+    df["last_updated"] = df["scraped_on"]
     return df
 
 
 def transform_address(df):
-    try:
-        indexes = df.loc[df['address'].str.contains(
-            'Landed House For Rent', case=False)].index
-        df.loc[indexes, 'address'] = df.loc[indexes, 'building_name'] \
-            .apply(lambda x: [s.strip() for s in re.split(r'\bon\b|\bin\b', x) if s.strip()][-1])
-        df.loc[indexes, ['address', 'property_name', 'building_name']]
+    df["address"] = df["address"].fillna("")
 
-        indexes = df.loc[df['address'].str.contains(
-            'For Rent', case=False)].index
-        df.loc[indexes, 'address'] = df.loc[indexes, 'building_name']
-        df.loc[indexes, ['address', 'property_name', 'building_name']]
+    try:
+        indexes = df.loc[df["address"].str.contains(
+            "Landed House For Rent", case=False)].index
+        df.loc[indexes, "address"] = df.loc[indexes, "building_name"].apply(
+            lambda x: [s.strip() for s in re.split(
+                r"\bon\b|\bin\b", x) if s.strip()][-1]
+        )
+        df.loc[indexes, ["address", "property_name", "building_name"]]
+
+        indexes = df.loc[df["address"].str.contains(
+            "For Rent", case=False)].index
+        df.loc[indexes, "address"] = df.loc[indexes, "building_name"]
+        df.loc[indexes, ["address", "property_name", "building_name"]]
     except AttributeError as e:
         # No address on this day
         logging.error(f"No address on this day...")
@@ -320,58 +342,61 @@ def transform_address(df):
 
 def drop_duplicates(df, geometry_df: gpd.GeoDataFrame) -> pd.DataFrame:
     # Get temp district id to compare with real district id
-    df["tmp_district_id"] = df.apply(
-        lambda x: get_district(x["latitude"], x["longitude"], geometry_df), axis=1)
-    df.drop(df[(df.duplicated(subset='listing_id', keep=False)) & (
-        df["district_id"] != df["tmp_district_id"])].index, inplace=True)
+    df["tmp_district_id"] = df.apply(lambda x: get_district(
+        x["latitude"], x["longitude"], geometry_df), axis=1)
+    df.drop(
+        df[(df.duplicated(subset="listing_id", keep=False)) & (
+            df["district_id"] != df["tmp_district_id"])].index,
+        inplace=True,
+    )
     df.drop(columns=["tmp_district_id"], inplace=True)
 
     logging.info("Length of real duplicates: " +
-                 str(len(df[df.duplicated(subset='listing_id', keep=False)])))
-    df.drop_duplicates(subset='listing_id', keep='first', inplace=True)
+                 str(len(df[df.duplicated(subset="listing_id", keep=False)])))
+    df.drop_duplicates(subset="listing_id", keep="first", inplace=True)
     return df
 
 
 def drop_null_coords(df) -> pd.DataFrame:
-    indexes = df.loc[(df['latitude'].isnull()) |
-                     (df['longitude'].isnull())].index
+    indexes = df.loc[(df["latitude"].isnull()) |
+                     (df["longitude"].isnull())].index
     logging.info("Length of null coordinates: " +
-                 str(len(df[df['latitude'].isnull() | df['longitude'].isnull()])))
+                 str(len(df[df["latitude"].isnull() | df["longitude"].isnull()])))
     df.drop(indexes, inplace=True)
     return df
 
 
 def get_building_map(df):
     building_map = {}
-    for building_name, group in df.groupby('building_name'):
+    for building_name, group in df.groupby("building_name"):
         for _, row in group.iterrows():
-            if pd.isna(row['latitude']) or pd.isna(row['longitude']):
+            if pd.isna(row["latitude"]) or pd.isna(row["longitude"]):
                 continue
 
-            building_map[building_name] = (row['latitude'], row['longitude'])
+            building_map[building_name] = (row["latitude"], row["longitude"])
             break
     return building_map
 
 
 def fetch_gdf(db) -> gpd.GeoDataFrame:
     geometry_df = db.query_df("SELECT * FROM plan_area_mapping")
-    geometry_df['polygon'] = geometry_df['polygon'].apply(wkt.loads)
-    geometry_df = gpd.GeoDataFrame(geometry_df, geometry='polygon')
+    geometry_df["polygon"] = geometry_df["polygon"].apply(wkt.loads)
+    geometry_df = gpd.GeoDataFrame(geometry_df, geometry="polygon")
     return geometry_df
 
 
 def transform_categorical_values(df) -> pd.DataFrame:
     try:
-        df['property_type'] = df['property_type'].apply(
-            simplify_property_type).astype('category')
-        df['furnishing'] = df['furnishing'].fillna(
-            'Unfurnished').astype('category')
-        df['facing'] = df['facing'].astype('category')
-        df['tenure'] = df['tenure'].apply(
-            simplify_lease_type).astype('category')
-        df['district'] = df['district'].astype('category')
-        df['floor_level'] = df['floor_level'].str.replace(
-            r'\s*\(\d+ total\)', '', regex=True).astype('category')
+        df["property_type"] = df["property_type"].apply(
+            simplify_property_type).astype("category")
+        df["furnishing"] = df["furnishing"].fillna(
+            "Unfurnished").astype("category")
+        df["facing"] = df["facing"].astype("category")
+        df["tenure"] = df["tenure"].apply(
+            simplify_lease_type).astype("category")
+        df["district"] = df["district"].astype("category")
+        df["floor_level"] = df["floor_level"].str.replace(
+            r"\s*\(\d+ total\)", "", regex=True).astype("category")
     except AttributeError as e:
         logging.error(
             f"No categorical values on this day: {e.__class__.__name__} - {e}")
@@ -379,71 +404,93 @@ def transform_categorical_values(df) -> pd.DataFrame:
 
 
 def extract_facilities(df) -> pd.DataFrame:
-    df['has_pool'] = df['facilities'].apply(
-        lambda x: 'pool' in x.lower() if x else None)
-    df['has_gym'] = df['facilities'].apply(
-        lambda x: 'gym' in x.lower() if x else None)
+    df["has_pool"] = df["facilities"].apply(
+        lambda x: "pool" in x.lower() if x else None)
+    df["has_gym"] = df["facilities"].apply(
+        lambda x: "gym" in x.lower() if x else None)
     return df
 
 
 def transform_numerical_values(df) -> pd.DataFrame:
+    # dimensions can't be None
+    df = df.dropna(subset=['dimensions'])
+    print(df["bedroom"])
+    print(df["bathroom"])
+
     try:
-        df['price'] = df['price'].apply(
-            extract_num_price).str.replace(',', '').astype(int)
-        df['bedroom'] = df['bedroom'].apply(
-            extract_num_bedroom).astype(int)
-        df['bathroom'] = df['bathroom'].apply(
+        df["price"] = df["price"].apply(
+            extract_num_price).str.replace(",", "").astype(int)
+        df["bedroom"] = df["bedroom"].apply(extract_num_bedroom).astype(int)
+        df["bathroom"] = df["bathroom"].apply(
             extract_num).fillna("0").astype(int)
-        df['dimensions'] = df['dimensions'].apply(
-            extract_num).str.replace(',', '').astype(int)
-        df['built_year'] = df['built_year'].fillna(9999).astype(int)
-        df['price/sqft'] = df['price/sqft'].apply(
-            extract_num).str.replace(',', '').astype(float)
+        df["dimensions"] = df["dimensions"].apply(
+            extract_num).str.replace(",", "").astype(int)
+        df["built_year"] = df["built_year"].fillna(9999).astype(int)
+        df["price/sqft"] = df["price/sqft"].apply(
+            extract_num).str.replace(",", "").astype(float)
     except TypeError as e:
+        traceback.print_exc()
         logging.error(
             f"No numerical values on this day: {e.__class__.__name__} - {e}")
+        raise e
     return df
 
 
-def insert_df(db, df, debug: bool = False) -> None:
-    existing = db.query_df(
-        "SELECT listing_id, fingerprint, last_updated FROM property_listing")
-    df = df.merge(existing, on="listing_id", how="left",
-                  indicator=True, suffixes=('', '_old'))
+def insert_df(db: MotherDuckDBConnector, df, debug: bool = False) -> None:
+    try:
+        db.begin_transaction()
 
-    change_data_capture(df, db, debug)
+        existing = db.query_df(
+            "SELECT listing_id, fingerprint, last_updated FROM property_listing")
+        df = df.merge(existing, on="listing_id", how="left",
+                      indicator=True, suffixes=("", "_old"))
 
-    # Insert new property listing
-    new = df[df['_merge'] == 'left_only'][PROPERTY_LISTING_COLS]
-    logging.info(f"New: \n{new}\n")
+        change_data_capture(df, db, debug)
 
-    if not new.empty and not debug:
-        db.insert_df("property_listing", new)
+        # Insert new property listing
+        new = df[df["_merge"] == "left_only"][PROPERTY_LISTING_COLS]
+        logging.info(f"New: \n{new}\n")
+
+        if not new.empty and not debug:
+            db.insert_df("property_listing", new)
+
+        db.commit_transaction()
+    except Exception as e:
+        db.rollback_transaction()
+        logging.error(f"{e.__class__.__name__}: {e}")
+        raise e
 
 
 def change_data_capture(df, db: MotherDuckDBConnector, debug: bool = False) -> None:
-    """ 
-    changed:  
+    """
+    changed:
     1. insert to rental price history
     2. update old one (fingerprint and last_updated)
     """
-    changed = df[(df['fingerprint'] != df['fingerprint_old']) & (df['_merge'] == 'both')][[
-        'listing_id', 'fingerprint', 'scraped_on', 'fingerprint_old', 'last_updated_old', '_merge']]
+    changed = df[(df["fingerprint"] != df["fingerprint_old"]) & (df["_merge"] == "both")][
+        [
+            "listing_id",
+            "fingerprint",
+            "scraped_on",
+            "fingerprint_old",
+            "last_updated_old",
+            "_merge",
+        ]
+    ]
     logging.info(f"Changed: \n{changed}\n")
 
     # Change data capture
-    cdc = changed[['listing_id', 'fingerprint', 'last_updated_old']]
-    cdc['price'] = cdc['fingerprint'].apply(
-        lambda x: int(x.split("-")[1]))
-    cdc.rename(columns={'last_updated_old': 'timestamp'}, inplace=True)
+    cdc = changed[["listing_id", "fingerprint", "last_updated_old"]]
+    cdc["price"] = cdc["fingerprint"].apply(lambda x: int(x.split("-")[1]))
+    cdc.rename(columns={"last_updated_old": "timestamp"}, inplace=True)
     cdc = cdc[RENTAL_PRICE_HISTORY_COLS]
     logging.info(f"CDC: \n{cdc}\n")
 
     # Update old listings with new fingerprint and last_updated
-    changed = changed[['listing_id', 'fingerprint', 'scraped_on']]
-    changed['price'] = changed['fingerprint'].apply(
+    changed = changed[["listing_id", "fingerprint", "scraped_on"]]
+    changed["price"] = changed["fingerprint"].apply(
         lambda x: int(x.split("-")[1]))
-    changed.rename(columns={'scraped_on': 'last_updated'}, inplace=True)
+    changed.rename(columns={"scraped_on": "last_updated"}, inplace=True)
     logging.info(f"Changed: \n{changed}\n")
 
     # Insert to rental price history
@@ -465,8 +512,7 @@ def print_all_columns(df):
 
 
 def transform(db: MotherDuckDBConnector, date: str, debug: bool = False):
-    df = read_df_from_s3(
-        f"rental_prices/ninety_nine/{date}.parquet.gzip")
+    df = read_df_from_s3(f"rental_prices/ninety_nine/{date}.parquet.gzip")
     logging.info(f"Dataframe downloaded with shape {df.shape}")
 
     if debug:
@@ -476,7 +522,7 @@ def transform(db: MotherDuckDBConnector, date: str, debug: bool = False):
         f"Length of duplicates: {len(df[df.duplicated(subset='listing_id', keep=False)])}")
 
     # Get building name
-    df['building_name'] = df['property_name'].apply(
+    df["building_name"] = df["property_name"].apply(
         lambda x: x.split(" in ")[-1])
     logging.info(f"Unique building names: {len(df['building_name'].unique())}")
 
@@ -537,45 +583,56 @@ def transform(db: MotherDuckDBConnector, date: str, debug: bool = False):
 
 
 def get_s3_file_names(bucket_name, prefix):
-    s3 = boto3.client('s3')
+    s3 = boto3.client("s3")
     response = s3.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
     file_names = []
-    for obj in response['Contents']:
-        file_names.append(obj['Key'])
+    try:
+        for obj in response["Contents"]:
+            if not obj["Key"].endswith(".parquet.gzip"):
+                continue
+            file_names.append(obj["Key"])
+    except KeyError:
+        logging.error("No files found in S3 bucket")
+        logging.error(response)
+        return []
     return sorted(set(file_names))
 
 
 def delete_s3_file(bucket_name, filename):
-    s3 = boto3.client('s3')
+    s3 = boto3.client("s3")
     s3.delete_object(Bucket=bucket_name, Key=filename)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Enable debug mode")
     args = parser.parse_args()
 
-    from dotenv import load_dotenv
     import traceback
+
+    from dotenv import load_dotenv
+
     load_dotenv()
 
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s:%(name)s:%(filename)s-%(lineno)s [%(levelname)s] %(message)s",
-                        datefmt="%Y-%m-%d %H:%M:%S")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s:%(name)s:%(filename)s-%(lineno)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
     REVERSE_DISTRICTS = {v: k for k, v in DISTRICTS.items()}
     COL_MAPPER = {
-        'price/sqft': 'price_per_sqft',
-        'distance_to_nearest_mrt': 'distance_to_mrt_in_m',
-        'distance_to_nearest_hawker': 'distance_to_hawker_in_m',
-        'distance_to_nearest_sch': 'distance_to_sch_in_m',
-        'distance_to_nearest_supermarket': 'distance_to_supermarket_in_m',
-        'distance_to_nearest_mall': 'distance_to_mall_in_m',
+        "price/sqft": "price_per_sqft",
+        "distance_to_nearest_mrt": "distance_to_mrt_in_m",
+        "distance_to_nearest_hawker": "distance_to_hawker_in_m",
+        "distance_to_nearest_sch": "distance_to_sch_in_m",
+        "distance_to_nearest_supermarket": "distance_to_supermarket_in_m",
+        "distance_to_nearest_mall": "distance_to_mall_in_m",
     }
 
-    BUCKET_NAME = os.getenv('S3_BUCKET')
-    PREFIX = 'rental_prices/ninety_nine/'
+    BUCKET_NAME = os.getenv("S3_BUCKET")
+    PREFIX = "rental_prices/ninety_nine/"
 
     KEEP_FILE_THRESHOLD = 5
 
@@ -584,18 +641,25 @@ if __name__ == '__main__':
 
     db = connect_to_motherduckdb()
     try:
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now().strftime("%Y-%m-%d")
         prev_date = LAST_TRANSFORMED_DATE
         cur_date = LAST_TRANSFORMED_DATE
         for filename in get_s3_file_names(bucket_name=BUCKET_NAME, prefix=PREFIX):
-            file_date = filename.split('/')[-1].split('.')[0]
+            file_date = filename.split("/")[-1].split(".")[0]
+            logging.info(f"Processing {file_date}...")
             if LAST_TRANSFORMED_DATE < file_date <= today:
                 prev_date = cur_date
                 cur_date = file_date
-                logging.info(F"Transforming {filename}...")
+                logging.info(f"Transforming {filename}...")
                 transform(db, file_date, args.debug)
-            elif LAST_TRANSFORMED_DATE >= file_date and \
-                    (datetime.strptime(LAST_TRANSFORMED_DATE, '%Y-%m-%d') - datetime.strptime(file_date, '%Y-%m-%d')).days > KEEP_FILE_THRESHOLD:
+            elif (
+                LAST_TRANSFORMED_DATE >= file_date
+                and (
+                    datetime.strptime(
+                        LAST_TRANSFORMED_DATE, "%Y-%m-%d") - datetime.strptime(file_date, "%Y-%m-%d")
+                ).days
+                > KEEP_FILE_THRESHOLD
+            ):
                 logging.info(f"Deleting {filename}...")
                 if not args.debug:
                     delete_s3_file(BUCKET_NAME, filename)
@@ -609,10 +673,12 @@ if __name__ == '__main__':
         logging.error(f"{e.__class__.__name__}: {e}")
         traceback.print_exc()
 
-        send_message("99.co transformer",
-                     f"Transformer failed: {e.__class__.__name__} - {e}")
+        # Call the main function
+        asyncio.run(send_message("99.co transformer",
+                                 f"Transformer failed: {e.__class__.__name__} - {e}"))
 
         if prev_date:
+            logging.info(f"Reverting to previous date: {prev_date}")
             with open('./pkg/logs/transformer/last_transformed_date.log', 'w') as file:
                 file.write(prev_date)
     finally:

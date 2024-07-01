@@ -96,7 +96,7 @@ def convert_csv_to_parquet_and_upload(csv_file_path: str, s3_client, bucket_name
     parquet_bytes.close()
 
 
-def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
+def upload_files_to_s3(local_directories: str, bucket_name: str) -> None:
     """
     Uploads files from a local directory to an S3 bucket.
 
@@ -137,42 +137,43 @@ def upload_files_to_s3(local_directory: str, bucket_name: str) -> None:
     outdated_hashes_set: set = set(entry["hash"] for entry in outdated_hashes)
 
     # List all files in the local directory
-    for root, _, files in os.walk(local_directory):
-        for file in files:
-            local_file_path = os.path.join(root, file)
-            # Enforcing the format rental_prices/ninety_nine/*.csv
-            s3_file_path = os.path.join(
-                root, file).replace(os.path.sep, "/")[2:]
+    for local_directory in local_directories:
+        for root, _, files in os.walk(local_directory):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+                # Enforcing the format rental_prices/ninety_nine/*.csv
+                s3_file_path = os.path.join(
+                    root, file).replace(os.path.sep, "/")[2:]
 
-	    s3_file_path = s3_file_path.replace("/pkg/", "")
+                s3_file_path = s3_file_path.replace("pkg/", "")
 
-            # handle case where s3_file_path starts with '/' due to os.path.sep between Windows and Linux
-            if s3_file_path.startswith("/"):
-                s3_file_path = s3_file_path[1:]
+                # handle case where s3_file_path starts with '/' due to os.path.sep between Windows and Linux
+                if s3_file_path.startswith("/"):
+                    s3_file_path = s3_file_path[1:]
 
-            # Calculate the hash of the local file
-            file_hash = calculate_file_hash(local_file_path)
+                # Calculate the hash of the local file
+                file_hash = calculate_file_hash(local_file_path)
 
-            # Check if the file has been uploaded (based on hash)
-            if file_hash in updated_hashes_set:
-                print(
-                    f"Skipping upload for {local_file_path} (already uploaded)")
-                continue
-            elif file_hash in outdated_hashes_set:
-                print(
-                    "File is outdated, removing from local directory and skipping upload")
-                os.remove(local_file_path)
-                continue
+                # Check if the file has been uploaded (based on hash)
+                if file_hash in updated_hashes_set:
+                    print(
+                        f"Skipping upload for {local_file_path} (already uploaded)")
+                    continue
+                elif file_hash in outdated_hashes_set:
+                    print(
+                        "File is outdated, removing from local directory and skipping upload")
+                    os.remove(local_file_path)
+                    continue
 
-            # Upload the Parquet file to S3
-            s3_file_path = f"{s3_file_path.replace('.csv', '.parquet')}.gzip"
-            convert_csv_to_parquet_and_upload(
-                local_file_path, s3, bucket_name, s3_file_path)
+                # Upload the Parquet file to S3
+                s3_file_path = f"{s3_file_path.replace('.csv', '.parquet')}.gzip"
+                # convert_csv_to_parquet_and_upload(
+                #     local_file_path, s3, bucket_name, s3_file_path)
 
-            # Add the hash with timestamp to the list of uploaded hashes
-            updated_hashes.append(
-                {"hash": file_hash, "timestamp": current_time.strftime(DATETIME_FORMAT)})
-            updated_hashes_set.add(file_hash)
+                # Add the hash with timestamp to the list of uploaded hashes
+                # updated_hashes.append(
+                #     {"hash": file_hash, "timestamp": current_time.strftime(DATETIME_FORMAT)})
+                # updated_hashes_set.add(file_hash)
 
     # Save updated hashes to the file
     save_uploaded_hashes(HASH_FILE_PATH, updated_hashes)
@@ -184,7 +185,8 @@ if __name__ == "__main__":
     DATETIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
     # Specify the local directory containing CSV files
-    local_directory = "./pkg/rental_prices/ninety_nine"
+    local_directory = ["./pkg/rental_prices/ninety_nine",
+                       "./pkg/rental_prices/propnex"]
 
     # Specify the S3 bucket name
     bucket_name = os.getenv("S3_BUCKET")
