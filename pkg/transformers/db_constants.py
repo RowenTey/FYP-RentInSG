@@ -39,4 +39,4 @@ PROPERTY_LISTING_COLS = [
     "last_updated",
 ]
 
-RENTAL_PRICE_HISTORY_COLS = ['listing_id', 'price', 'timestamp']
+RENTAL_PRICE_HISTORY_COLS = ["listing_id", "price", "timestamp"]
