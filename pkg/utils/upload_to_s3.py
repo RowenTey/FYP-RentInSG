@@ -167,13 +167,13 @@ def upload_files_to_s3(local_directories: str, bucket_name: str) -> None:
 
                 # Upload the Parquet file to S3
                 s3_file_path = f"{s3_file_path.replace('.csv', '.parquet')}.gzip"
-                # convert_csv_to_parquet_and_upload(
-                #     local_file_path, s3, bucket_name, s3_file_path)
+                convert_csv_to_parquet_and_upload(
+                    local_file_path, s3, bucket_name, s3_file_path)
 
                 # Add the hash with timestamp to the list of uploaded hashes
-                # updated_hashes.append(
-                #     {"hash": file_hash, "timestamp": current_time.strftime(DATETIME_FORMAT)})
-                # updated_hashes_set.add(file_hash)
+                updated_hashes.append(
+                    {"hash": file_hash, "timestamp": current_time.strftime(DATETIME_FORMAT)})
+                updated_hashes_set.add(file_hash)
 
     # Save updated hashes to the file
     save_uploaded_hashes(HASH_FILE_PATH, updated_hashes)
