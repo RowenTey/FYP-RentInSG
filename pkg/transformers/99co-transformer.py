@@ -25,12 +25,8 @@ from utils.notify import send_message
 from utils.parse_geojson import get_district
 from utils.read_df_from_s3 import read_df_from_s3
 
-"""
-IMplement the following:
-- transaction management
-"""
 
-# Global vars to store 1 time info -> prevent multiple fetches
+# Global vars to store cache info -> prevent multiple fetches
 MRT_INFO, HAWKER_INFO, SUPERMARKET_INFO, PRIMARY_SCHOOL_INFO, MALL_INFO = (
     None,
     None,
@@ -38,6 +34,16 @@ MRT_INFO, HAWKER_INFO, SUPERMARKET_INFO, PRIMARY_SCHOOL_INFO, MALL_INFO = (
     None,
     None,
 )
+
+REVERSE_DISTRICTS = {v: k for k, v in DISTRICTS.items()}
+COL_MAPPER = {
+    "price/sqft": "price_per_sqft",
+    "distance_to_nearest_mrt": "distance_to_mrt_in_m",
+    "distance_to_nearest_hawker": "distance_to_hawker_in_m",
+    "distance_to_nearest_sch": "distance_to_sch_in_m",
+    "distance_to_nearest_supermarket": "distance_to_supermarket_in_m",
+    "distance_to_nearest_mall": "distance_to_mall_in_m",
+}
 
 
 def update_coord_w_building_name(df, building_map) -> Tuple[pd.DataFrame, dict]:
@@ -603,7 +609,7 @@ def delete_s3_file(bucket_name, filename):
     s3.delete_object(Bucket=bucket_name, Key=filename)
 
 
-if __name__ == "__main__":
+def run():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Enable debug mode")
@@ -620,16 +626,6 @@ if __name__ == "__main__":
         format="%(asctime)s:%(name)s:%(filename)s-%(lineno)s [%(levelname)s] %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
-
-    REVERSE_DISTRICTS = {v: k for k, v in DISTRICTS.items()}
-    COL_MAPPER = {
-        "price/sqft": "price_per_sqft",
-        "distance_to_nearest_mrt": "distance_to_mrt_in_m",
-        "distance_to_nearest_hawker": "distance_to_hawker_in_m",
-        "distance_to_nearest_sch": "distance_to_sch_in_m",
-        "distance_to_nearest_supermarket": "distance_to_supermarket_in_m",
-        "distance_to_nearest_mall": "distance_to_mall_in_m",
-    }
 
     BUCKET_NAME = os.getenv("S3_BUCKET")
     PREFIX = "rental_prices/ninety_nine/"
@@ -683,3 +679,7 @@ if __name__ == "__main__":
                 file.write(prev_date)
     finally:
         db.close()
+
+
+if __name__ == "__main__":
+    run()
