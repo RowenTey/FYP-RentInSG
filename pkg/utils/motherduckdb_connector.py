@@ -118,7 +118,7 @@ class MotherDuckDBConnector:
 def connect_to_motherduckdb() -> MotherDuckDBConnector:
     db = MotherDuckDBConnector()
     db.connect()
-    db.check_connection()
+    # db.check_connection()
     return db
 
 

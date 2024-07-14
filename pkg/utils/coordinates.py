@@ -1,7 +1,6 @@
 import logging
-
-import numpy as np
 import requests
+import numpy as np
 
 
 def fetch_coordinates(location_name):

@@ -1,11 +1,11 @@
-import io
-import os
-
-import boto3
 import pandas as pd
 
 
 def read_df_from_s3(s3_file_path: str) -> pd.DataFrame:
+    import io
+    import os
+    import boto3
+
     aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
     aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
     bucket_name = os.getenv("S3_BUCKET")
