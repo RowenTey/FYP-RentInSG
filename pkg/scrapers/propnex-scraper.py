@@ -54,29 +54,21 @@ class PropnexScraper(AbstractPropertyScraper):
     def fetch_html(self, url, has_pages):
         try:
             for trial in range(1, 21):
+                self.monitor_cpu()
+                scraper = self.session
+
                 logging.info("Loading " + url)
-
-                # Make request
                 time.sleep(random.randint(1, 5))
-                wait = WebDriverWait(self.driver, 20)
-                self.driver.get(url)
+                self.html_content = scraper.get(url).text
+                logging.info("=" * 75)
 
-                # Wait for page to load
-                wait.until(EC.presence_of_element_located(
-                    (By.TAG_NAME, "body")))
-
-                # Get the page source
-                html_content = self.driver.page_source
-                logging.info("=" * 75 + "\n")
-
-                soup = BeautifulSoup(html_content, "html.parser")
+                soup = BeautifulSoup(self.html_content, "html.parser")
 
                 if "captcha" in soup.text:
                     self.handle_retry("CAPTCHA", trial)
                     continue
 
                 if has_pages and not soup.select_one(self.pagination_element):
-                    logging.info(self.html_content[:200])
                     self.handle_retry("No pages", trial)
                     continue
 
@@ -348,7 +340,7 @@ class PropnexScraper(AbstractPropertyScraper):
         self.query = "?sortBy=newest&listingType=RENT&condoPropertyType=CONDO%2CAPT&district={district}"
 
     def __del__(self):
-        self.driver.close()
+        self.driver.quit()
 
 
 if __name__ == "__main__":

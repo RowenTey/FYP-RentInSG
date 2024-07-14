@@ -105,7 +105,7 @@ class AbstractPropertyScraper(ABC):
         "facilities",
     ]
 
-    def __init__(self, header: str, key: str, query: str):
+    def __init__(self, header: str, key: str, query: str, use_proxies: bool = False):
         """
         Initializes an AbstractPropertyScraper object.
 
@@ -118,17 +118,22 @@ class AbstractPropertyScraper(ABC):
         self.header = header
         self.key = key
         self.query = query
+        self.use_proxies = use_proxies
         self.html_content = ""
         self.platform_name = ""
         self.properties_per_page = 50  # default to 50 properties per page
         self.pages_to_fetch = 10  # default to 10 pages
         self.pagination_element = ""
-        self.property_card_listing_div_class = ""
         self.rental_price_dir = "rental_prices/"
         self.failure_counter = 0
         self.cpu_threshold = 80
         self.props = []
         self.session = self.create_scraper()
+
+        self.proxies = []
+        if self.use_proxies:
+            self.proxies = AbstractPropertyScraper.get_proxies()
+            self.rotate_proxy()
 
     def fetch_html(self, url: str, has_pages: bool) -> BeautifulSoup:
         """
@@ -180,8 +185,7 @@ class AbstractPropertyScraper(ABC):
             return None
 
     def create_scraper(self):
-        ua = UserAgent()
-        headers = {"User-Agent": ua.random}
+        headers = {"User-Agent": UserAgent().random}
 
         session = requests.Session()
         retry = Retry(connect=3, backoff_factor=1,
@@ -191,18 +195,18 @@ class AbstractPropertyScraper(ABC):
         session.mount("http://", adapter)
         session.mount("https://", adapter)
         session.headers.update(headers)
-        scraper = cfscrape.create_scraper(sess=session, delay=20)
 
-        return scraper
+        return cfscrape.create_scraper(sess=session, delay=30)
 
     def handle_retry(self, reason, trial):
         logging.info(f"{reason} -> Retrying ({trial}/20)...")
-        time.sleep(random.randint(1, 5))
+        time.sleep(random.randint(1, 10))
         self.failure_counter += 1
 
         # Wait 30s every 10 tries
         if trial % 10 == 0:
             logging.info("Connection reset, retrying in 30 secs...")
+            self.rotate_proxy()
             time.sleep(30)
 
     def monitor_cpu(self):
@@ -357,6 +361,28 @@ class AbstractPropertyScraper(ABC):
             f"Scraping completed successfully - {len(df)}!",
         )
 
+    def rotate_proxy(self):
+        if not self.use_proxies:
+            return
+
+        proxy = random.choice(self.proxies)
+        proxy_url = f"http://{proxy['ip']}:{proxy['port']}"
+        logging.info(f"Rotating proxy: {proxy_url}")
+        self.session.proxies.update(
+            {"http": proxy_url}
+        )
+
+    def rotate_proxy(self):
+        if not self.use_proxies:
+            return
+
+        proxy = random.choice(self.proxies)
+        proxy_url = f"http://{proxy['ip']}:{proxy['port']}"
+        logging.info(f"Rotating proxy: {proxy_url}")
+        self.session.proxies.update(
+            {"http": proxy_url}
+        )
+
     def run(self, debug):
         """
         Runs the scraper for all districts.
@@ -385,3 +411,21 @@ class AbstractPropertyScraper(ABC):
 
         """
         return input_string.replace(" ", "_").lower()
+
+    @staticmethod
+    def get_proxies() -> None:
+        """
+        Fetches proxies from the Proxynova API.
+
+        Returns:
+            List[str]: A list of proxies.
+
+        """
+        try:
+            res = requests.get(
+                'https://api.proxynova.com/proxy/find?url=https%3A%2F%2Fwww.proxynova.com%2Fproxy-server-list%2Felite-proxies%2F')
+            data = res.json()
+            return data['proxies']
+        except Exception as e:
+            logging.info(f"Error fetching proxies: {e}")
+            return []
