@@ -8,7 +8,7 @@ WORKDIR /app
 # COPY requirements.txt .
 
 # Install the required packages
-RUN pip install --no-cache-dir streamlit pandas duckdb==0.9.2 plotly geopy requests numpy scikit-learn==1.4.2 catboost
+RUN pip install --no-cache-dir streamlit pandas duckdb==0.10.2 plotly geopy requests numpy scikit-learn==1.4.2 catboost pygwalker==0.4.8.6
 
 # Copy the app files to the working directory
 COPY . .

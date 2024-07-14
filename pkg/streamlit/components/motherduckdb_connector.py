@@ -1,11 +1,12 @@
-import os
 import logging
+import os
+
 import duckdb
 from pandas import DataFrame, concat
 
 
 class MotherDuckDBConnector:
-    def __init__(self, token_name: str = 'MOTHERDUCKDB_TOKEN'):
+    def __init__(self, token_name: str = "MOTHERDUCKDB_TOKEN"):
         self.motherduck_token = os.getenv(token_name)
         self.connection: duckdb.DuckDBPyConnection = None
         self.logger = logging.getLogger(MotherDuckDBConnector.__name__)
@@ -15,15 +16,15 @@ class MotherDuckDBConnector:
         try:
             # Connect to your MotherDuck database through 'md:mydatabase' or 'motherduck:mydatabase'
             # If the database doesn't exist, MotherDuck creates it when you connect
-            self.connection = duckdb.connect(
-                f'md:fyp_rent_in_sg?motherduck_token={self.motherduck_token}')
+            self.connection = duckdb.connect(f"md:fyp_rent_in_sg?motherduck_token={self.motherduck_token}")
         except Exception as e:
             self.logger.error(f"Error connecting to MotherDuckDB: {str(e)}")
 
     def create_s3_secret(self, aws_access_key_id: str, aws_secret_access_key: str, aws_region: str):
         # Create a secret to set AWS credentials
         self.connection.sql(
-            f"CREATE OR REPLACE SECRET (TYPE S3, S3_ACCESS_KEY_ID '{aws_access_key_id}', S3_SECRET_ACCESS_KEY '{aws_secret_access_key}', S3_REGION '{aws_region}')")
+            f"CREATE OR REPLACE SECRET (TYPE S3, S3_ACCESS_KEY_ID '{aws_access_key_id}', S3_SECRET_ACCESS_KEY '{aws_secret_access_key}', S3_REGION '{aws_region}')"
+        )
 
     def check_connection(self):
         # Run a query to check verify that you are connected
@@ -33,7 +34,8 @@ class MotherDuckDBConnector:
     def create_table_from_s3(self, table_name: str, s3_bucket: str, s3_filepath: str):
         # Create table if it doesn't exist and import data from S3
         self.connection.sql(
-            f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM 's3://{s3_bucket}/{s3_filepath}'")
+            f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM 's3://{s3_bucket}/{s3_filepath}'"
+        )
 
     def show_tables(self):
         # Show all tables in the database
@@ -103,6 +105,7 @@ def connect_to_motherduckdb() -> MotherDuckDBConnector:
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
+
     load_dotenv()
 
     # aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
