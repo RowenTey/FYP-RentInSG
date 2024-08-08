@@ -1,0 +1,25 @@
+# Use the official Python base image
+FROM --platform=linux/amd64 python:3.11
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Install the required packages
+RUN pip install --no-cache-dir pandas requests numpy cloudscraper fake-useragent urllib3 bs4 python-dotenv python-telegram-bot psutil
+
+# Copy the app files to the working directory
+COPY ./pkg/scrapers/scraper.py pkg/scrapers/scraper.py
+COPY ./pkg/scrapers/99co-scraper.py pkg/scrapers/99co-scraper.py
+COPY ./pkg/utils/notify.py pkg/utils/notify.py
+
+# Create a directory for logs
+RUN mkdir -p pkg/logs/scraper
+RUN mkdir -p pkg/rental_prices/ninety_nine
+
+# Copy the entrypoint script and make it executable
+COPY ./pkg/scrapers/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Set the entrypoint to the script
+ENTRYPOINT ["/entrypoint.sh", "99co-scraper"]
+

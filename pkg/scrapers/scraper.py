@@ -158,6 +158,7 @@ class AbstractPropertyScraper(ABC):
                 logging.info("=" * 75)
 
                 soup = BeautifulSoup(self.html_content, "html.parser")
+                print(soup)
 
                 if "captcha" in soup.text:
                     self.handle_retry("CAPTCHA", trial)
@@ -359,17 +360,6 @@ class AbstractPropertyScraper(ABC):
         send_message(
             f"{self.platform_name} Scraper",
             f"Scraping completed successfully - {len(df)}!",
-        )
-
-    def rotate_proxy(self):
-        if not self.use_proxies:
-            return
-
-        proxy = random.choice(self.proxies)
-        proxy_url = f"http://{proxy['ip']}:{proxy['port']}"
-        logging.info(f"Rotating proxy: {proxy_url}")
-        self.session.proxies.update(
-            {"http": proxy_url}
         )
 
     def rotate_proxy(self):
