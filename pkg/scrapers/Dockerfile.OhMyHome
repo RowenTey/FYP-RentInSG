@@ -1,0 +1,38 @@
+# Use the official Python base image
+FROM --platform=linux/amd64 python:3.11
+
+# Set the working directory in the container
+WORKDIR /app
+
+RUN apt-get update && \
+    apt-get install -y wget gnupg2 unzip && \
+    wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - && \
+    sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list' && \
+    apt-get update && \
+    apt-get install -y google-chrome-stable && \
+    wget -O /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/126.0.6478.61/linux64/chromedriver-linux64.zip && \
+    unzip /tmp/chromedriver.zip -d /tmp/chromedriver && \
+    mv /tmp/chromedriver/chromedriver-linux64/chromedriver /usr/local/bin/ && \
+    apt-get clean
+
+# set display port to avoid crash
+ENV DISPLAY=:99
+
+# Install the required packages
+RUN pip install --no-cache-dir pandas requests numpy cloudscraper fake-useragent urllib3 bs4 python-dotenv python-telegram-bot psutil selenium
+
+# Copy the app files to the working directory
+COPY ./pkg/scrapers/scraper.py pkg/scrapers/scraper.py
+COPY ./pkg/scrapers/ohmyhome-scraper.py pkg/scrapers/ohmyhome-scraper.py
+COPY ./pkg/utils/notify.py pkg/utils/notify.py
+
+# Create a directory for logs
+RUN mkdir -p pkg/logs/scraper
+RUN mkdir -p pkg/rental_prices/ohmyhome
+
+# Copy the entrypoint script and make it executable
+COPY ./pkg/scrapers/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Set the entrypoint to the script
+ENTRYPOINT ["/entrypoint.sh", "ohmyhome-scraper"]
