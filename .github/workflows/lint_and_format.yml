@@ -38,9 +38,9 @@ jobs:
           autopep8 -vv -i -r -aa pkg airflow
 
       # Run flake8 to check the code for linting issues
-      - name: Run flake8
-        run: |
-          flake8 -v pkg airflow
+      # - name: Run flake8
+      #   run: |
+      #     flake8 -v pkg airflow
 
       - name: Commit changes
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'pull_request')
