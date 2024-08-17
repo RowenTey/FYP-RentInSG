@@ -26,17 +26,21 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 autopep8
+          pip install flake8 flake8-docstrings autopep8
 
       # Auto-fix Python code
+      # -v -> verbose
+      # -i -> modifies in-place
+      # -r -> recursively
+      # -a -> aggressive (try to fix everything)
       - name: Run autopep8
         run: |
-          autopep8 --in-place --aggressive --aggressive .  #
+          autopep8 -vv -i -r -aa pkg airflow
 
       # Run flake8 to check the code for linting issues
       - name: Run flake8
         run: |
-          flake8 .
+          flake8 -v pkg airflow
 
       - name: Commit changes
         if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'pull_request')
