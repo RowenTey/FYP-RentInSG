@@ -1,3 +1,20 @@
+from utils.read_df_from_s3 import read_df_from_s3
+from utils.parse_geojson import get_district
+from utils.notify import send_message
+from utils.motherduckdb_connector import MotherDuckDBConnector, connect_to_motherduckdb
+from utils.location_constants import *
+from utils.find_closest import find_nearest
+from utils.coordinates import fetch_coordinates
+from transformers.db_constants import *
+from shapely import wkt
+import pandas as pd
+import geopandas as gpd
+import boto3
+from typing import Tuple
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
+import logging
 import argparse
 import asyncio
 import os
@@ -5,25 +22,6 @@ import sys
 
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../")))
-
-import logging
-import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
-from typing import Tuple
-
-import boto3
-import geopandas as gpd
-import pandas as pd
-from shapely import wkt
-from transformers.db_constants import *
-from utils.coordinates import fetch_coordinates
-from utils.find_closest import find_nearest
-from utils.location_constants import *
-from utils.motherduckdb_connector import MotherDuckDBConnector, connect_to_motherduckdb
-from utils.notify import send_message
-from utils.parse_geojson import get_district
-from utils.read_df_from_s3 import read_df_from_s3
 
 
 # Global vars to store cache info -> prevent multiple fetches

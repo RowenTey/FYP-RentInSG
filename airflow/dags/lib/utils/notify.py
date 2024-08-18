@@ -2,7 +2,7 @@ def send_message(service_name: str, message: str):
     import os
     import logging
     import telegram
-    
+
     TOKEN = os.environ["TELEGRAM_TOKEN"]
     CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 

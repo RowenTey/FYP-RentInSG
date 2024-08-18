@@ -4,6 +4,7 @@ import pandas as pd
 import geopandas as gpd
 from typing import Tuple
 
+
 def fetch_coordinates(location_name: str) -> Tuple[str, Tuple[float, float]]:
     """
     Fetches the coordinates of the specified location using the OneMap API.
@@ -18,7 +19,7 @@ def fetch_coordinates(location_name: str) -> Tuple[str, Tuple[float, float]]:
     If no coordinates are found, returns the location name with NaN values for latitude and longitude.
     """
     import requests
-    
+
     url = "https://www.onemap.gov.sg/api/common/elastic/search"
     params = {
         "searchVal": location_name,
@@ -41,11 +42,11 @@ def fetch_coordinates(location_name: str) -> Tuple[str, Tuple[float, float]]:
 
 
 def find_nearest(
-    df1: pd.DataFrame, 
-    df2: pd.DataFrame, 
-    target_landmark: str, 
-    distance_to_target_landmark: str, 
-    is_inference: bool = False) -> pd.DataFrame:
+        df1: pd.DataFrame,
+        df2: pd.DataFrame,
+        target_landmark: str,
+        distance_to_target_landmark: str,
+        is_inference: bool = False) -> pd.DataFrame:
     """
     A function that finds the nearest locations from the 2nd table to the 1st address based on geodesic distance calculations.
     Taken from https://medium.com/@michael.wy.ong/web-scrape-geospatial-data-analyse-singapores-property-price-part-i-276caba320b
@@ -56,12 +57,12 @@ def find_nearest(
         target_landmark: str - The target landmark column name to store the nearest landmark.
         distance_to_target_landmark: str - The target column name to store the distance to the landmark.
         is_inference: bool - Flag indicating if it's an inference operation.
-    
+
     Returns:
         pd.DataFrame - The updated DataFrame with information on the nearest landmarks and distances.
     """
     from geopy.distance import geodesic
-    
+
     if not is_inference:
         assert "building_name" in df1.columns, "building_name column not found in df1"
 

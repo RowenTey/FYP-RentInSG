@@ -23,7 +23,7 @@ st.text("This dashboard predicts the rental price of a property in Singapore ðŸ“
 st.info(
     """
     Fill in the form below with specific parameteres to predict monthly rental price of a property in Singapore.
-    __(\* indicates required fields)__
+    __(\\* indicates required fields)__
 """
 )
 
@@ -137,13 +137,13 @@ def transform_form_data(form_data):
     return form_data
 
 
-@ st.cache_data
+@st.cache_data
 def fetch_info(_db, query, target_cols):
     df2 = _db.query_df(query)
     return df2[target_cols]
 
 
-@ st.cache_data
+@st.cache_data
 def load_local_data(file_path):
     return pd.read_csv(file_path)
 
@@ -326,7 +326,8 @@ def process_form_data(model, column_transformer, form_data) -> float:
     # Make predictions using the model
     prediction, *_ = model.predict(transformed_data)
 
-    return prediction, shap_values, transformed_data, (validated_form_data["latitude"], validated_form_data["longitude"])
+    return prediction, shap_values, transformed_data, (
+        validated_form_data["latitude"], validated_form_data["longitude"])
 
 
 @st.experimental_fragment

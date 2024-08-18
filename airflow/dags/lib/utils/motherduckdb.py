@@ -2,6 +2,7 @@ import logging
 import duckdb
 from pandas import DataFrame, concat
 
+
 class MotherDuckDBConnector:
     def __init__(self, conn: duckdb.DuckDBPyConnection):
         self.connection: duckdb.DuckDBPyConnection = conn
@@ -121,9 +122,9 @@ if __name__ == "__main__":
 
     '''
     df = db.query_df_in_batch("""
-        SELECT 
+        SELECT
         *
-        FROM property_listing;                          
+        FROM property_listing;
     """)
     '''
     # df.to_csv('training_data.csv', index=False)

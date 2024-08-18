@@ -1,6 +1,7 @@
 import pandas as pd
 from io import BytesIO
 
+
 def parquet(df: pd.DataFrame) -> BytesIO:
     # Code from https://github.com/pandas-dev/pandas/issues/51140
     data: BytesIO = BytesIO()
