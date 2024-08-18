@@ -2,36 +2,35 @@ import os
 from airflow import DAG
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.operators.python import PythonOperator
-from lib.utils.notify import send_message
-from lib.utils.parquet import parquet
-from lib.transformers.transform import transform
 from datetime import datetime
 
 from docker.types import Mount
+
+DATE_STR = datetime.today().strftime("%Y-%m-%d")
+DOCKER_IMAGE = "rowentey/fyp-rent-in-sg:propnex-scraper-debug"
+DOCKER_TARGET_VOLUME = "propnex_data"
+DOCKER_VOLUME_DIR = "/app/pkg/rental_prices/propnex"
+S3_BUCKET = os.environ['S3_BUCKET']
+S3_KEY = f"airflow/propnex/{DATE_STR}.parquet.gzip"
+TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
+TELEGRAM_CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime(2024, 7, 14),
     'email': ['kaiseong02@gmail.com'],
-    'email_on_success': True,
     'email_on_failure': True,
-    'email_on_retry': False,
     'retries': 1
 }
 
-# Define the DAG
 dag = DAG(
     'propnex_etl',
     default_args=default_args,
     catchup=False, 
     description='A DAG to scrape data from Propnex and upload to S3',
-    schedule_interval='0 3 * * *',  
+    schedule_interval='0 7 * * *',  
 )
-
-DATE_STR = datetime.today().strftime("%Y-%m-%d")
-S3_BUCKET = os.environ['S3_BUCKET']
-S3_KEY = f"airflow/propnex/{DATE_STR}.parquet.gzip"
 
 def fetch_csv_from_volume(**kwargs):
     """
@@ -48,7 +47,7 @@ def fetch_csv_from_volume(**kwargs):
 
     This function uses the `docker` library to create a Docker client and run a container. It retrieves the content of a CSV file
     located in the `/app/output/{DATE_STR}.csv` path within the container. The `DATE_STR` variable is expected to be defined
-    elsewhere in the code. The container is configured with the `scraper_data` volume, which is mounted in read-only mode.
+    elsewhere in the code. The container is configured with the `DOCKER_TARGET_VOLUME` volume, which is mounted in read-only mode.
     The container is removed after the content is retrieved.
 
     Note:
@@ -60,8 +59,8 @@ def fetch_csv_from_volume(**kwargs):
     client = from_env()
     container = client.containers.run(
         'alpine',
-        f'cat /app/output/{DATE_STR}.csv',
-        volumes={'scraper_data': {'bind': '/app/output', 'mode': 'ro'}},
+        f'cat {DOCKER_VOLUME_DIR}/{DATE_STR}.csv',
+        volumes={DOCKER_TARGET_VOLUME: {'bind': DOCKER_VOLUME_DIR, 'mode': 'ro'}},
         remove=True
     )
     
@@ -103,27 +102,30 @@ def upload_to_s3(s3_bucket, s3_key, **kwargs):
         - For more information on transferring files to and from an S3 bucket using Apache Airflow, 
         refer to the blog post at https://blog.devgenius.io/transfer-files-to-and-from-s3-bucket-using-apache-airflow-e3790a3b47a2.
     """
+    from lib.utils.parquet import parquet
     from airflow.providers.amazon.aws.operators.s3 import S3Hook
     
     ti = kwargs['ti']
     df = ti.xcom_pull(task_ids='convert_csv_to_df')
     
-    parquet_bytes = parquet(df)
+    parquet_bytes = parquet(df) 
     
     hook = S3Hook(aws_conn_id='aws_conn')
     hook.load_file_obj(parquet_bytes, s3_key, bucket_name=s3_bucket, replace=True)
     
-def clean_and_transform(**kwargs):
-    ti = kwargs['ti']
-    df = ti.xcom_pull(task_ids='convert_csv_to_df')
+# def clean_and_transform(**kwargs):
+#     from lib.transformers.transform import transform
+
+#     ti = kwargs['ti']
+#     df = ti.xcom_pull(task_ids='convert_csv_to_df')
     
-    print(f"Got df! \n{df}\n")
-    transform()
+#     print(f"Got df! \n{df}\n")
+#     transform()
     
-# Task to push cleaned data to DuckDB as a data sink (example)
-def push_to_duckdb(**kwargs):
-    # Your logic to push data to DuckDB
-    print("Pushing cleaned data to DuckDB")
+# # Task to push cleaned data to DuckDB as a data sink (example)
+# def push_to_duckdb(**kwargs):
+#     # Your logic to push data to DuckDB
+#     print("Pushing cleaned data to DuckDB")
 
 """  
 spark_task = SparkSubmitOperator(
@@ -139,11 +141,11 @@ spark_task = SparkSubmitOperator(
 
 docker_task = DockerOperator(
     task_id='scrape_data',
-    image='rowentey/fyp-rent-in-sg:propnex-scraper-debug',
+    image=DOCKER_IMAGE,
     api_version='auto',
     auto_remove=True,  
     mounts=[
-        Mount(source='scraper_data', target='/app/pkg/rental_prices/propnex', type='volume'),
+        Mount(source=DOCKER_TARGET_VOLUME, target=DOCKER_VOLUME_DIR, type='volume'),
     ],
     # Specify the Docker daemon socket
     docker_url='unix://var/run/docker.sock',  
@@ -151,6 +153,8 @@ docker_task = DockerOperator(
     tty=True,
     force_pull=True,
     environment={
+        "TELEGRAM_TOKEN": TELEGRAM_TOKEN,
+        "TELEGRAM_CHAT_ID": TELEGRAM_CHAT_ID,
         "LOG_OUTPUT": "false"
     },
     dag=dag,

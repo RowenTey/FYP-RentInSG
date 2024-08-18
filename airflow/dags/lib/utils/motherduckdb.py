@@ -1,30 +1,11 @@
 import logging
-import os
 import duckdb
 from pandas import DataFrame, concat
 
 class MotherDuckDBConnector:
-    def __init__(self, token_name: str = "MOTHERDUCKDB_TOKEN"):
-        self.motherduck_token = os.getenv(token_name)
-        self.connection: duckdb.DuckDBPyConnection = None
+    def __init__(self, conn: duckdb.DuckDBPyConnection):
+        self.connection: duckdb.DuckDBPyConnection = conn
         self.logger = logging.getLogger(MotherDuckDBConnector.__name__)
-
-    def connect(self):
-        self.logger.info("Connecting to MotherDuckDB...")
-        try:
-            # Set a memory limit for the DuckDB connection (e.g., 1GB)
-            memory_limit = "700MB"
-
-            # Connect to your MotherDuck database through 'md:mydatabase' or 'motherduck:mydatabase'
-            # If the database doesn't exist, MotherDuck creates it when you connect
-            # Include the memory_limit in the connection string
-            self.connection = duckdb.connect(
-                f"md:fyp_rent_in_sg?motherduck_token={self.motherduck_token}",
-                config={"max_memory": memory_limit}
-            )
-            self.logger.info("Connected to MotherDuckDB!")
-        except Exception as e:
-            self.logger.error(f"Error connecting to MotherDuckDB: {str(e)}")
 
     def create_s3_secret(self, aws_access_key_id: str, aws_secret_access_key: str, aws_region: str):
         # Create a secret to set AWS credentials
@@ -46,9 +27,14 @@ class MotherDuckDBConnector:
     def show_tables(self):
         # Show all tables in the database
         self.connection.sql("SHOW TABLES").show()
+        
+    def get_table_size(self, table_name: str) -> int:
+        # Get the size of a table
+        return self.connection.sql(f"SELECT COUNT(*) FROM {table_name};").fetchall()[0][0]
 
     def query_df(self, query: str) -> DataFrame:
         # Run a query
+        print(f"Running query: {query}")
         return self.connection.sql(query).df()
 
     def query_df_in_batch(self, query: str, batch_size: int = 1000) -> DataFrame:
@@ -124,14 +110,14 @@ if __name__ == "__main__":
     from dotenv import load_dotenv
     load_dotenv()
 
-    aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
-    aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
-    aws_region = "ap-southeast-1"
-    s3_bucket = os.getenv("S3_BUCKET")
-    s3_filepath = "rental_prices/ninety_nine/2024-01-25.parquet.gzip"
+    # aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
+    # aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    # aws_region = "ap-southeast-1"
+    # s3_bucket = os.getenv("S3_BUCKET")
+    # s3_filepath = "rental_prices/ninety_nine/2024-01-25.parquet.gzip"
 
-    db = connect_to_motherduckdb()
-    print("MotherDuckDB connection completed.")
+    # db = connect_to_motherduckdb()
+    # print("MotherDuckDB connection completed.")
 
     '''
     df = db.query_df_in_batch("""

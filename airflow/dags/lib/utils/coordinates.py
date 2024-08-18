@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 from typing import Tuple
 
 def fetch_coordinates(location_name: str) -> Tuple[str, Tuple[float, float]]:
@@ -90,3 +91,19 @@ def find_nearest(
         df1.loc[df1["building_name"] == building_name, distance_to_target_landmark] = landmark_info[2]
 
     return df1
+
+
+def get_district(lat, long, gdf: gpd.GeoDataFrame):
+    from shapely.geometry import Point
+    from lib.constants.location_constants import PLAN_AREA_MAPPING
+    
+    # swap long and lat
+    point = Point(long, lat)
+    plan_area = gdf.loc[gdf.contains(point), "plan_area"].squeeze()
+
+    if isinstance(plan_area, pd.Series):
+        if plan_area.empty:
+            return ""
+        plan_area = plan_area.mode()
+
+    return PLAN_AREA_MAPPING[plan_area]

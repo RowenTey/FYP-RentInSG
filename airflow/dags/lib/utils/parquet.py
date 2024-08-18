@@ -12,5 +12,8 @@ def parquet(df: pd.DataFrame) -> BytesIO:
         df.to_parquet(data, compression="gzip", index=False)
     finally:
         data.close = orig_close
+    
+    # Reset the buffer position to the start
+    data.seek(0) 
 
     return data
