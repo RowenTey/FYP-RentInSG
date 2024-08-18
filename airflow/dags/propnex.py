@@ -29,8 +29,9 @@ dag = DAG(
     default_args=default_args,
     catchup=False,
     description='A DAG to scrape data from Propnex and upload to S3',
-    schedule_interval='0 7 * * *',  
+    schedule_interval='0 7 * * *',
 )
+
 
 def fetch_csv_from_volume(**kwargs):
     """
@@ -114,16 +115,16 @@ def upload_to_s3(s3_bucket, s3_key, **kwargs):
 
     hook = S3Hook(aws_conn_id='aws_conn')
     hook.load_file_obj(parquet_bytes, s3_key, bucket_name=s3_bucket, replace=True)
-    
+
 # def clean_and_transform(**kwargs):
 #     from lib.transformers.transform import transform
 
 #     ti = kwargs['ti']
 #     df = ti.xcom_pull(task_ids='convert_csv_to_df')
-    
+
 #     print(f"Got df! \n{df}\n")
 #     transform()
-    
+
 # # Task to push cleaned data to DuckDB as a data sink (example)
 # def push_to_duckdb(**kwargs):
 #     # Your logic to push data to DuckDB

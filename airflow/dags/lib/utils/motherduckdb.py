@@ -28,7 +28,7 @@ class MotherDuckDBConnector:
     def show_tables(self):
         # Show all tables in the database
         self.connection.sql("SHOW TABLES").show()
-        
+
     def get_table_size(self, table_name: str) -> int:
         # Get the size of a table
         return self.connection.sql(f"SELECT COUNT(*) FROM {table_name};").fetchall()[0][0]

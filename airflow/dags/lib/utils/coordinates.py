@@ -97,7 +97,7 @@ def find_nearest(
 def get_district(lat, long, gdf: gpd.GeoDataFrame):
     from shapely.geometry import Point
     from lib.constants.location_constants import PLAN_AREA_MAPPING
-    
+
     # swap long and lat
     point = Point(long, lat)
     plan_area = gdf.loc[gdf.contains(point), "plan_area"].squeeze()

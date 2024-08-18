@@ -34,33 +34,34 @@ dag = DAG(
     schedule=[property_listing_dataset],
 )
 
+
 def check_and_trigger_retraining(duckdb_conn_id: str, dataset_uri: str, **context):
     from lib.utils.motherduckdb import MotherDuckDBConnector
     from duckdb_provider.hooks.duckdb_hook import DuckDBHook
     from duckdb import DuckDBPyConnection
-    
+
     duckdb_hook = DuckDBHook.get_hook(duckdb_conn_id)
     conn: DuckDBPyConnection = duckdb_hook.get_conn()
     db = MotherDuckDBConnector(conn)
-    
+
     # example: s3://fyp-rent-in-sg/property_listing/
     database = dataset_uri.split("duckdb://")[1].split("/")[0]
     table = dataset_uri.split("duckdb://")[1].split("/")[1]
     print(f"Checking database: {database}, table: {table}")
-    
+
     conn = DuckDBHook.get_hook(duckdb_conn_id).get_conn()
     db = MotherDuckDBConnector(conn)
     current_size = db.get_table_size(table)
     db.close()
-    
+
     ti = context['ti']
     previous_size = ti.xcom_pull(task_ids='check_and_trigger_retraining', key='previous_size', default=1)
     print(f"Current size: {current_size}; Previous size: {previous_size}")
-    
+
     if current_size - previous_size <= 5000:
         ti.xcom_push(key='previous_size', value=current_size)
         return "retraining_not_triggered"
-    
+
     ti.xcom_push(key='previous_size', value=current_size)
     return "retraining_triggered"
 
@@ -69,16 +70,16 @@ def load_data(duckdb_conn_id: str, table_name: str, **kwargs):
     from lib.utils.motherduckdb import MotherDuckDBConnector
     from duckdb_provider.hooks.duckdb_hook import DuckDBHook
     from duckdb import DuckDBPyConnection
-    
+
     duckdb_hook = DuckDBHook.get_hook(duckdb_conn_id)
     conn: DuckDBPyConnection = duckdb_hook.get_conn()
     db = MotherDuckDBConnector(conn)
-    
+
     df = db.query_df(f"SELECT * FROM {table_name}")
     db.close()
-    
+
     return df
-    
+
 
 def clean_data(upstream_task: str, **kwargs):
     import pandas as pd
@@ -86,7 +87,7 @@ def clean_data(upstream_task: str, **kwargs):
 
     ti = kwargs["ti"]
     df = ti.xcom_pull(task_ids=upstream_task)
-    
+
     # Perform data cleaning steps
     df["furnishing"] = df["furnishing"].fillna(df["furnishing"].mode()[0])
     df["facing"] = df["facing"].fillna(df["facing"].mode()[0])
@@ -98,7 +99,7 @@ def clean_data(upstream_task: str, **kwargs):
     df["distance_to_mrt_in_m"] = df["distance_to_mrt_in_m"].replace(np.inf, df["distance_to_mrt_in_m"].median())
     df["has_pool"] = df["has_pool"].replace(pd.NA, False)
     df["has_gym"] = df["has_gym"].replace(pd.NA, False)
-    
+
     return df
 
 
@@ -108,9 +109,9 @@ def create_or_get_experiment(experiment_name: str, artifact_bucket: str, mlflow_
     or retrieve the existing experiment's ID.
     """
     from mlflow_provider.hooks.client import MLflowClientHook
-        
+
     mlflow_hook = MLflowClientHook(mlflow_conn_id=mlflow_conn_id)
-    
+
     # Check if the experiment already exists
     existing_experiments = mlflow_hook.run(
         endpoint="api/2.0/mlflow/experiments/search",
@@ -118,7 +119,7 @@ def create_or_get_experiment(experiment_name: str, artifact_bucket: str, mlflow_
         request_params={"max_results": 5}
     )
     print(existing_experiments.json())
-    
+
     resp = existing_experiments.json()
     for exp in resp.get("experiments", []):
         if exp["name"] == experiment_name:
@@ -133,31 +134,41 @@ def create_or_get_experiment(experiment_name: str, artifact_bucket: str, mlflow_
             "artifact_location": f"s3://{artifact_bucket}/mlflow/{experiment_name.lower()}",
         },
     ).json()
-    
+
     print(f"Created new experiment '{experiment_name}' with ID {new_experiment_information['experiment_id']}")
     return new_experiment_information["experiment_id"]
 
 
-def perform_eda(upstream_task: list[str], **kwargs): 
-    import mlflow 
-       
+def perform_eda(upstream_task: list[str], **kwargs):
+    import mlflow
+
     ti = kwargs['ti']
     df = ti.xcom_pull(task_ids=upstream_task[0])
     experiment_id = ti.xcom_pull(task_ids=upstream_task[1])
-    
-    numerical_columns = ["price", "bedroom", "bathroom", "dimensions", "built_year", "distance_to_mrt_in_m", "distance_to_hawker_in_m", "distance_to_supermarket_in_m", "distance_to_sch_in_m", "distance_to_mall_in_m"]
+
+    numerical_columns = [
+        "price",
+        "bedroom",
+        "bathroom",
+        "dimensions",
+        "built_year",
+        "distance_to_mrt_in_m",
+        "distance_to_hawker_in_m",
+        "distance_to_supermarket_in_m",
+        "distance_to_sch_in_m",
+        "distance_to_mall_in_m"]
     categorical_columns = ["property_type", "furnishing", "floor_level", "district_id", "tenure", "facing"]
-    
+
     mlflow.set_tracking_uri("http://mlflow-server:5000")
     with mlflow.start_run(
-        experiment_id=experiment_id, 
-        run_name=f"EDA_{datetime.today().strftime('%Y-%m-%d_%H:%M')}"):
+            experiment_id=experiment_id,
+            run_name=f"EDA_{datetime.today().strftime('%Y-%m-%d_%H:%M')}"):
         # Log descriptive statistics
         mlflow.log_param("numerical_columns", numerical_columns)
         mlflow.log_param("categorical_columns", categorical_columns)
         mlflow.log_metric("num_rows", len(df))
         mlflow.log_metric("num_columns", len(df.columns))
-        
+
         # Log correlation with price
         correlations = df[numerical_columns].corr()["price"].sort_values(ascending=False)
         print(correlations)
@@ -168,32 +179,42 @@ def prepare_data(upstream_task: str, **kwargs):
     import pandas as pd
     from sklearn.model_selection import train_test_split
     from lib.utils.outlier import OutlierHandlerIQR
-    
+
     ti = kwargs['ti']
     df = ti.xcom_pull(task_ids=upstream_task)
-    
-    numerical_columns = ["price", "bedroom", "bathroom", "dimensions", "built_year", "distance_to_mrt_in_m", "distance_to_hawker_in_m", "distance_to_supermarket_in_m", "distance_to_sch_in_m", "distance_to_mall_in_m"]
+
+    numerical_columns = [
+        "price",
+        "bedroom",
+        "bathroom",
+        "dimensions",
+        "built_year",
+        "distance_to_mrt_in_m",
+        "distance_to_hawker_in_m",
+        "distance_to_supermarket_in_m",
+        "distance_to_sch_in_m",
+        "distance_to_mall_in_m"]
     categorical_columns = ["property_type", "furnishing", "floor_level", "district_id", "tenure", "facing"]
-    
+
     # drop columns not in numerical and categorical columns
     df = df.drop(columns=[col for col in df.columns if col not in numerical_columns + categorical_columns])
     print(df.columns)
-    
+
     rental_price = df['price']
     X = df.drop(['price'], axis=1)
-    
+
     X_train, X_temp, y_train, y_temp = train_test_split(X, rental_price, test_size=0.2, random_state=42)
     X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5, random_state=42)
-    
+
     outlier_handler = OutlierHandlerIQR()
     X_train_new, y_train_new = outlier_handler.fit_transform(X_train, y_train)
     X_val_new, y_val_new = outlier_handler.transform(X_val, y_val)
     X_test_new, y_test_new = outlier_handler.transform(X_test, y_test)
-    
+
     train_df = pd.concat([X_train_new, y_train_new], axis=1)
     val_df = pd.concat([X_val_new, y_val_new], axis=1)
     test_df = pd.concat([X_test_new, y_test_new], axis=1)
-    
+
     return (train_df, val_df, test_df)
 
 
@@ -204,15 +225,24 @@ def train_and_evaluate_model(experiment_id: str, model_class: any, model_name, t
     from sklearn.preprocessing import StandardScaler, OneHotEncoder
     from sklearn.compose import ColumnTransformer
     from sklearn.pipeline import Pipeline
-    
+
     X_train = train_data.drop('price', axis=1)
     y_train = train_data['price']
     X_val = val_data.drop('price', axis=1)
     y_val = val_data['price']
-    
-    numerical_columns = ["bedroom", "bathroom", "dimensions", "built_year", "distance_to_mrt_in_m", "distance_to_hawker_in_m", "distance_to_supermarket_in_m", "distance_to_sch_in_m", "distance_to_mall_in_m"]
+
+    numerical_columns = [
+        "bedroom",
+        "bathroom",
+        "dimensions",
+        "built_year",
+        "distance_to_mrt_in_m",
+        "distance_to_hawker_in_m",
+        "distance_to_supermarket_in_m",
+        "distance_to_sch_in_m",
+        "distance_to_mall_in_m"]
     categorical_columns = ["property_type", "furnishing", "floor_level", "district_id", "tenure", "facing"]
-    
+
     column_transformer = ColumnTransformer(
         transformers=[
             ("scaler", StandardScaler(), [col for col in numerical_columns if col != "price"]),
@@ -220,42 +250,42 @@ def train_and_evaluate_model(experiment_id: str, model_class: any, model_name, t
         ],
         remainder="passthrough"
     )
-    
+
     pipeline = Pipeline([
         ('preprocessor', column_transformer),
-        ('regressor', model_class) 
+        ('regressor', model_class)
     ])
-    
+
     mlflow.set_tracking_uri("http://mlflow-server:5000")
     print(f"Training model: {model_name}")
     run_id = None
     with mlflow.start_run(
-        experiment_id=experiment_id, 
+        experiment_id=experiment_id,
         # run_name=f"{model_name}_{datetime.today().strftime('%Y-%m-%d_%H:%M')}") as run:
         run_name=f"{model_name}"
     ) as run:
         pipeline.fit(X_train, y_train)
         y_pred = pipeline.predict(X_val)
         signature = mlflow.models.infer_signature(X_val, y_pred)
-        
+
         mae = mean_absolute_error(y_val, y_pred).round(2)
         rmse = np.sqrt(mean_squared_error(y_val, y_pred)).round(2)
         evs = explained_variance_score(y_val, y_pred).round(2)
-        
+
         mlflow.log_metric("mae", mae)
         mlflow.log_metric("rmse", rmse)
         mlflow.log_metric("explained_variance_score", evs)
-        
+
         mlflow.sklearn.log_model(pipeline, artifact_path=model_name, signature=signature)
         run_id = run.info.run_id
-    
+
     return (mae, rmse, evs, run_id)
 
 
 def train_models(upstream_task: list[str], **kwargs):
     from sklearn.ensemble import (
         RandomForestRegressor,
-        AdaBoostRegressor, 
+        AdaBoostRegressor,
         HistGradientBoostingRegressor
     )
     from sklearn.tree import DecisionTreeRegressor
@@ -266,13 +296,13 @@ def train_models(upstream_task: list[str], **kwargs):
     )
     from xgboost import XGBRegressor
     from catboost import CatBoostRegressor
-    
+
     ti = kwargs['ti']
     data = ti.xcom_pull(task_ids=upstream_task[0])
     experiment_id = ti.xcom_pull(task_ids=upstream_task[1])
-    
+
     train_data, val_data, _ = data
-    
+
     models = [
         (LinearRegression(), "linear_regression"),
         (Lasso(alpha=1.0), "lasso_regression"),
@@ -284,10 +314,10 @@ def train_models(upstream_task: list[str], **kwargs):
         (XGBRegressor(), "xgboost"),
         (CatBoostRegressor(), "catboost"),
     ]
-    
+
     best_model = best_run = None
     best_rmse = float('inf')
-    
+
     for model_class, model_name in models:
         mae, rmse, evs, run_id = train_and_evaluate_model(experiment_id, model_class, model_name, train_data, val_data)
         print(f"Model: {model_name}, MAE: {mae}, RMSE: {rmse}, EVS: {evs}")
@@ -295,16 +325,16 @@ def train_models(upstream_task: list[str], **kwargs):
             best_rmse = rmse
             best_run = run_id
             best_model = model_name
-    
+
     return (best_model, best_run)
 
 
 def check_if_model_already_registered(
-    mlflow_conn_id: str, 
-    model_name: str, 
-    create_registered_model_task_id: str,
-    model_already_registered_task_id: str,  
-    **kwargs):
+        mlflow_conn_id: str,
+        model_name: str,
+        create_registered_model_task_id: str,
+        model_already_registered_task_id: str,
+        **kwargs):
     "Get information about existing registered MLFlow models."
     from mlflow_provider.hooks.client import MLflowClientHook
 
@@ -322,8 +352,9 @@ def check_if_model_already_registered(
         reg_model_exists = False
     else:
         reg_model_exists = True
-    
+
     return model_already_registered_task_id if reg_model_exists else create_registered_model_task_id
+
 
 check_and_trigger_retraining_task = BranchPythonOperator(
     task_id="check_and_trigger_retraining",
@@ -427,7 +458,7 @@ create_model_version_task = CreateModelVersionOperator(
     + "{{ ti.xcom_pull(task_ids='train_models')[0] }}",
     run_id="{{ ti.xcom_pull(task_ids='train_models')[1] }}",
     description=(
-        "Best regression model for property listing price prediction is "  
+        "Best regression model for property listing price prediction is "
         "{{ ti.xcom_pull(task_ids='train_models')[0] }}."
     ),
     trigger_rule="none_failed",
@@ -448,7 +479,7 @@ check_and_trigger_retraining_task >> retraining_task
 retraining_triggered_task >> load_data_task
 retraining_triggered_task >> create_experiment_task
 
-load_data_task >> clean_data_task 
+load_data_task >> clean_data_task
 
 clean_data_task >> perform_eda_task
 clean_data_task >> prepare_data_task
@@ -458,7 +489,7 @@ create_experiment_task >> train_models_task
 
 prepare_data_task >> train_models_task
 
-train_models_task >> check_if_model_already_registered_task 
+train_models_task >> check_if_model_already_registered_task
 
 check_if_model_already_registered_task >> register_model_task
 
