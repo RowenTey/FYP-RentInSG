@@ -259,7 +259,7 @@ def shp_to_csv(shp_file_path, csv_file_path) -> None:
         csv_file_path (str): The path to the CSV file to be created.
 
     Example:
-        >>> shp_to_csv("data\mrt_location_data\RapidTransitSystemStation.shp", "data\mrt_lrt_sg.csv")
+        >>> shp_to_csv("data\\mrt_location_data\\RapidTransitSystemStation.shp", "data\\mrt_lrt_sg.csv")
         station_name  longitude   latitude   color  line
         0   Jurong East  103.742287  1.333115   NaN    North South Line
         1   Bukit Batok  103.749567  1.349057   NaN    North South Line
@@ -291,8 +291,8 @@ if __name__ == "__main__":
         "https://mrtmapsingapore.com/mrt-stations-singapore/",
         "https://mrtmapsingapore.com/lrt-stations/",
     ]
-    SHP_FILE_PATH = "..\data\mrt_location_data\RapidTransitSystemStation.shp"
-    CSV_FILE_PATH = "..\data\mrt_lrt_sg.csv"
+    SHP_FILE_PATH = "..\\data\\mrt_location_data\\RapidTransitSystemStation.shp"
+    CSV_FILE_PATH = "..\\data\\mrt_lrt_sg.csv"
 
     shp_to_csv(SHP_FILE_PATH, CSV_FILE_PATH)
     print(f"Conversion from Shapefile to CSV completed. CSV file saved at: {CSV_FILE_PATH}")

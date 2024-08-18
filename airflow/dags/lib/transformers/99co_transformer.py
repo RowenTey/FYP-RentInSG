@@ -1,3 +1,20 @@
+from utils.read_df_from_s3 import read_df_from_s3
+from utils.parse_geojson import get_district
+from utils.notify import send_message
+from utils.motherduckdb_connector import MotherDuckDBConnector, connect_to_motherduckdb
+from utils.location_constants import *
+from utils.find_closest import find_nearest
+from utils.coordinates import fetch_coordinates
+from transformers.db_constants import *
+from shapely import wkt
+import pandas as pd
+import geopandas as gpd
+import boto3
+from typing import Tuple
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
+import logging
 import argparse
 import asyncio
 import os
@@ -5,25 +22,6 @@ import sys
 
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../")))
-
-import logging
-import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
-from typing import Tuple
-
-import boto3
-import geopandas as gpd
-import pandas as pd
-from shapely import wkt
-from transformers.db_constants import *
-from utils.coordinates import fetch_coordinates
-from utils.find_closest import find_nearest
-from utils.location_constants import *
-from utils.motherduckdb_connector import MotherDuckDBConnector, connect_to_motherduckdb
-from utils.notify import send_message
-from utils.parse_geojson import get_district
-from utils.read_df_from_s3 import read_df_from_s3
 
 
 # Global vars to store cache info -> prevent multiple fetches
@@ -58,23 +56,23 @@ def update_coordinates(df, building_map) -> Tuple[pd.DataFrame, dict]:
         df.loc[df["building_name"] == building_name, "longitude"] = building_map[building_name][1]
 
     building_names_to_fetch = [name for name in building_names if name not in building_map]
-    
+
     # Process addresses
     addresses = df_null_coords["address"].unique()
-    
+
     with ThreadPoolExecutor() as executor:
         logging.info(f"Using {executor._max_workers} threads to fetch coordinates")
-        
+
         future_to_coords = {executor.submit(fetch_coordinates, name): name for name in building_names_to_fetch}
         future_to_coords.update({executor.submit(fetch_coordinates, address): address for address in addresses})
-        
+
         for future in as_completed(future_to_coords):
             result = future.result()
             if result is None:
                 continue
 
             name, coords = result
-            
+
             if name in building_names_to_fetch:
                 building_map[name] = coords
                 df.loc[df["building_name"] == name, "latitude"] = coords[0]

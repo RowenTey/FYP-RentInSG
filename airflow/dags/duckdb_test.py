@@ -16,7 +16,7 @@ default_args = {
 dag = DAG(
     'duckdb_test',
     default_args=default_args,
-    catchup=False, 
+    catchup=False,
     description='A DAG to test DuckDB',
     schedule_interval='0 3 * * *',  # Run the DAG daily at 3 AM UTC
 )
@@ -27,7 +27,7 @@ DUCKDB_TABLE_NAME = "supermarket_info"
 
 def query_duckdb(my_table, conn_id, **kwargs):
     from duckdb_provider.hooks.duckdb_hook import DuckDBHook
-    
+
     my_duck_hook = DuckDBHook.get_hook(conn_id)
     conn = my_duck_hook.get_conn()
 
@@ -35,6 +35,7 @@ def query_duckdb(my_table, conn_id, **kwargs):
     print(r)
 
     return r
+
 
 query_task = PythonOperator(
     task_id='query_duckdb',

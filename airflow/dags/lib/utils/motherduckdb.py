@@ -3,6 +3,7 @@ import os
 import duckdb
 from pandas import DataFrame, concat
 
+
 class MotherDuckDBConnector:
     def __init__(self, token_name: str = "MOTHERDUCKDB_TOKEN"):
         self.motherduck_token = os.getenv(token_name)
@@ -135,9 +136,9 @@ if __name__ == "__main__":
 
     '''
     df = db.query_df_in_batch("""
-        SELECT 
+        SELECT
         *
-        FROM property_listing;                          
+        FROM property_listing;
     """)
     '''
     # df.to_csv('training_data.csv', index=False)

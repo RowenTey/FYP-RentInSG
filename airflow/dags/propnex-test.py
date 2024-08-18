@@ -23,12 +23,13 @@ default_args = {
 dag = DAG(
     'data_pipeline_xcom',
     default_args=default_args,
-    catchup=False, 
+    catchup=False,
     description='A test DAG to test XCOM',
     schedule_interval='0 3 * * *',  # Run the DAG daily at 3 AM UTC
 )
 
 DATE_STR = datetime.today().strftime("%Y-%m-%d")
+
 
 def fetch_csv_from_volume(**kwargs):
     """
@@ -53,7 +54,7 @@ def fetch_csv_from_volume(**kwargs):
         - The `DATE_STR` variable must be defined and contain a valid date string.
     """
     from docker import from_env
-    
+
     client = from_env()
     container = client.containers.run(
         'alpine',
@@ -61,19 +62,21 @@ def fetch_csv_from_volume(**kwargs):
         volumes={'scraper_data': {'bind': '/app/output', 'mode': 'ro'}},
         remove=True
     )
-    
+
     csv_content = container.decode('utf-8')
     return csv_content
+
 
 def convert_csv_to_df(**kwargs):
     import pandas as pd
     from io import StringIO
-    
+
     ti = kwargs['ti']
     csv_content = ti.xcom_pull(task_ids='fetch_csv')
-    
+
     df = pd.read_csv(StringIO(csv_content))
     return df
+
 
 def upload_to_s3(s3_bucket, s3_key, **kwargs):
     """
@@ -90,39 +93,42 @@ def upload_to_s3(s3_bucket, s3_key, **kwargs):
     Raises:
         None
 
-    This function uploads a local file to an S3 bucket using the provided S3 bucket and key. 
-    The local file path is obtained from the TaskInstance (ti) using the task_ids 'fetch_csv'. 
-    The function first prints the local file path being uploaded to S3. 
-    It then uses the S3Hook to load the file into the S3 bucket. 
+    This function uploads a local file to an S3 bucket using the provided S3 bucket and key.
+    The local file path is obtained from the TaskInstance (ti) using the task_ids 'fetch_csv'.
+    The function first prints the local file path being uploaded to S3.
+    It then uses the S3Hook to load the file into the S3 bucket.
     Finally, it prints a message indicating that the file has been uploaded to S3.
 
     Note:
-        - For more information on transferring files to and from an S3 bucket using Apache Airflow, 
+        - For more information on transferring files to and from an S3 bucket using Apache Airflow,
         refer to the blog post at https://blog.devgenius.io/transfer-files-to-and-from-s3-bucket-using-apache-airflow-e3790a3b47a2.
     """
     from airflow.providers.amazon.aws.operators.s3 import S3Hook
-    
+
     ti = kwargs['ti']
     df = ti.xcom_pull(task_ids='convert_csv_to_df')
-    
+
     parquet_bytes = parquet(df)
-    
+
     hook = S3Hook(aws_conn_id='aws_conn')
     hook.load_file_obj(parquet_bytes, s3_key, bucket_name=s3_bucket, replace=True)
-    
+
+
 def clean_and_transform(**kwargs):
     ti = kwargs['ti']
     df = ti.xcom_pull(task_ids='convert_csv_to_df')
-    
+
     print(f"Got df! \n{df}\n")
     transform()
-    
+
 # Task to push cleaned data to DuckDB as a data sink (example)
+
+
 def push_to_duckdb(**kwargs):
     # Your logic to push data to DuckDB
     print("Pushing cleaned data to DuckDB")
-    
-    
+
+
 def housekeeping(**kwargs):
     from docker import from_env
 
@@ -160,7 +166,7 @@ def housekeeping(**kwargs):
     print(list_after_cleanup_container.decode('utf-8'))
 
 
-"""  
+"""
 spark_task = SparkSubmitOperator(
     task_id='clean_and_transform',
     application='/path/to/your/spark_job.py',  # Path to your Spark job script
@@ -176,12 +182,12 @@ docker_task = DockerOperator(
     task_id='scrape_data',
     image='rowentey/fyp-rent-in-sg:propnex-scraper-debug',
     api_version='auto',
-    auto_remove=True,  
+    auto_remove=True,
     mounts=[
         Mount(source='scraper_data', target='/app/pkg/rental_prices/propnex', type='volume'),
     ],
     # Specify the Docker daemon socket
-    docker_url='unix://var/run/docker.sock',  
+    docker_url='unix://var/run/docker.sock',
     retrieve_output=True,
     tty=True,
     environment={

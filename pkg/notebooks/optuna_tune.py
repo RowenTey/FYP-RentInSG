@@ -16,8 +16,17 @@ X = train_df.drop(['price'], axis=1)
 X_train, X_test, y_train, y_test = train_test_split(
     X, rental_price, test_size=0.2)
 
-numerical_columns = ["price", "bedroom", "bathroom", "dimensions", "built_year", "distance_to_mrt_in_m",
-                     "distance_to_hawker_in_m", "distance_to_supermarket_in_m", "distance_to_sch_in_m", "distance_to_mall_in_m"]
+numerical_columns = [
+    "price",
+    "bedroom",
+    "bathroom",
+    "dimensions",
+    "built_year",
+    "distance_to_mrt_in_m",
+    "distance_to_hawker_in_m",
+    "distance_to_supermarket_in_m",
+    "distance_to_sch_in_m",
+    "distance_to_mall_in_m"]
 categorical_columns = ["property_type", "furnishing",
                        "floor_level", "district_id", "tenure", "facing"]
 

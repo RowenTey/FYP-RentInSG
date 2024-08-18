@@ -1,24 +1,22 @@
+from utils.notify import send_message
+from urllib3 import Retry
+from requests.adapters import HTTPAdapter
+from fake_useragent import UserAgent
+from bs4 import BeautifulSoup
+import requests
+import psutil
+import pandas as pd
+import cloudscraper as cfscrape
+from datetime import date
+from abc import ABC, abstractmethod
+import time
+import random
+import logging
 import os
 import sys
 
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../")))
-
-import logging
-import random
-import time
-from abc import ABC, abstractmethod
-from datetime import date
-
-import cloudscraper as cfscrape
-import pandas as pd
-import psutil
-import requests
-from bs4 import BeautifulSoup
-from fake_useragent import UserAgent
-from requests.adapters import HTTPAdapter
-from urllib3 import Retry
-from utils.notify import send_message
 
 
 class AbstractPropertyScraper(ABC):

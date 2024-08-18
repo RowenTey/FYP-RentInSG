@@ -43,8 +43,24 @@ class PropertyGuruScraper:
         "D27": "Sembawang / Yishun",
         "D28": "Seletar / Yio Chu Kang"
     }
-    COLUMNS = ['property_name', 'listing_id', 'district', 'price', 'bedroom', 'bathroom', 'dimensions', 'price/sqft', 'tenure',
-               'furnished', 'address', 'property_type', 'floor_level',  'url', 'unit_features', 'facilities', ]
+    COLUMNS = [
+        'property_name',
+        'listing_id',
+        'district',
+        'price',
+        'bedroom',
+        'bathroom',
+        'dimensions',
+        'price/sqft',
+        'tenure',
+        'furnished',
+        'address',
+        'property_type',
+        'floor_level',
+        'url',
+        'unit_features',
+        'facilities',
+    ]
 
     def __init__(self,
                  header='https://www.propertyguru.com.sg',
