@@ -33,6 +33,6 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          dockerfile: pkg/scrapers/Dockerfile.Propnex
+          file: pkg/scrapers/Dockerfile.Propnex
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_HUB_REPO }}:propnex-scraper-latest
