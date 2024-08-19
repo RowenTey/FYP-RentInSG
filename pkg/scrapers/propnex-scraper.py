@@ -19,6 +19,31 @@ logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
 
 class PropnexScraper(AbstractPropertyScraper):
+    COLUMNS = [
+        "property_name",
+        "listing_id",
+        "district",
+        "price",
+        "bedroom",
+        "bathroom",
+        "dimensions",
+        "address",
+        "latitude",
+        "longitude",
+        "price/sqft",
+        "floor_level",
+        "furnishing",
+        "facing",
+        "built_year",
+        "tenure",
+        "property_type",
+        "nearest_mrt",
+        "distance_to_nearest_mrt",
+        "url",
+        "facilities",
+        "is_whole_unit",
+    ]
+
     def __init__(
         self,
         header="https://www.propnex.com",
@@ -150,10 +175,10 @@ class PropnexScraper(AbstractPropertyScraper):
 
     def get_more_details(self):
         try:
-            property_boxes = self.soup.find_all(
+            property_box = self.soup.find_all(
                 "div", class_="property-list-box")
-            not_included = set(["Property Group", "Listing Type", "District"])
-            for box in property_boxes:
+            not_included = set(["Property Group", "District"])
+            for box in property_box:
                 labels = box.find_all("b")
                 values = box.find_all("span")
 
@@ -167,6 +192,10 @@ class PropnexScraper(AbstractPropertyScraper):
                         continue
                     elif label == "Street Name":
                         self.output["address"] = val.get_text(strip=True)
+                        continue
+                    elif label == "Listing Type":
+                        self.output["is_whole_unit"] = True if \
+                            val.get_text(strip=True) != "ROOM" else False
                         continue
                     elif label == "Floor":
                         self.output["floor_level"] = val.get_text(strip=True)
