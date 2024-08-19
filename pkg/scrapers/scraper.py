@@ -4,7 +4,6 @@ import sys
 
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../")))
-# fmt: on
 
 from utils.notify import send_message
 from urllib3 import Retry
@@ -20,6 +19,7 @@ from abc import ABC, abstractmethod
 import time
 import random
 import logging
+# fmt: on
 
 
 class AbstractPropertyScraper(ABC):
