@@ -19,7 +19,6 @@ from fake_useragent import UserAgent
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 from utils.notify import send_message
-
 # fmt: on
 
 
