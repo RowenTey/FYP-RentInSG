@@ -352,7 +352,7 @@ class AbstractPropertyScraper(ABC):
         """
         Checks for failures in the scraping process.
 
-        Sends a message if the failure counter exceeds 100, if there is an error reading the CSV file, 
+        Sends a message if the failure counter exceeds 100, if there is an error reading the CSV file,
         if the CSV file is empty, or if the null values in any column exceed 50%.
         """
         if self.failure_counter >= 100:
@@ -394,8 +394,8 @@ class AbstractPropertyScraper(ABC):
         """
         Rotates the proxy used by the scraper.
 
-        This function selects a random proxy from the list of available proxies and updates the session's proxy 
-        settings with the selected proxy's IP and port. 
+        This function selects a random proxy from the list of available proxies and updates the session's proxy
+        settings with the selected proxy's IP and port.
         If the `use_proxies` flag is set to False, the function returns without performing any action.
         """
         if not self.use_proxies:
