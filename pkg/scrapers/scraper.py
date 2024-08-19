@@ -191,6 +191,12 @@ class AbstractPropertyScraper(ABC):
             return None
 
     def create_scraper(self):
+        """
+        Creates a scraper object with a random User-Agent header and a retry mechanism.
+
+        Returns:
+            A cfscrape scraper object with a session and a delay.
+        """
         headers = {"User-Agent": UserAgent().random}
 
         session = requests.Session()
@@ -205,6 +211,13 @@ class AbstractPropertyScraper(ABC):
         return cfscrape.create_scraper(sess=session, delay=30)
 
     def handle_retry(self, reason, trial):
+        """
+        Handles retry logic for a failed request.
+
+        Parameters:
+            reason (str): The reason for the retry.
+            trial (int): The current trial number.
+        """
         logging.info(f"{reason} -> Retrying ({trial}/20)...")
         time.sleep(random.randint(1, 10))
         self.failure_counter += 1
@@ -216,6 +229,10 @@ class AbstractPropertyScraper(ABC):
             time.sleep(30)
 
     def monitor_cpu(self):
+        """
+        Monitors the CPU usage and logs the usage percentage.
+        If the CPU usage exceeds the threshold, logs a message and sleeps for 30 seconds.
+        """
         cpu_usage = psutil.cpu_percent(interval=1)
         logging.info(f"CPU usage: {cpu_usage}%")
         if cpu_usage > self.cpu_threshold:
@@ -310,8 +327,7 @@ class AbstractPropertyScraper(ABC):
         Fetches the initial HTML content and determines the number of pages to scrape.
 
         Returns:
-            Tuple[BeautifulSoup, int]: The parsed HTML content and the number of pages.
-
+            res (Tuple[BeautifulSoup, int]): The parsed HTML content and the number of pages.
         """
         soup = self.fetch_html(self.header + self.key + self.query, True)
         if not soup:
@@ -333,6 +349,12 @@ class AbstractPropertyScraper(ABC):
             "Job initiated with query on rental properties in Singapore.")
 
     def check_for_failure(self):
+        """
+        Checks for failures in the scraping process.
+
+        Sends a message if the failure counter exceeds 100, if there is an error reading the CSV file, 
+        if the CSV file is empty, or if the null values in any column exceed 50%.
+        """
         if self.failure_counter >= 100:
             send_message(
                 f"{self.platform_name} Scraper",
@@ -369,6 +391,13 @@ class AbstractPropertyScraper(ABC):
         )
 
     def rotate_proxy(self):
+        """
+        Rotates the proxy used by the scraper.
+
+        This function selects a random proxy from the list of available proxies and updates the session's proxy 
+        settings with the selected proxy's IP and port. 
+        If the `use_proxies` flag is set to False, the function returns without performing any action.
+        """
         if not self.use_proxies:
             return
 
