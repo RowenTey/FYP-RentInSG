@@ -5,6 +5,7 @@ import requests
 
 
 def fetch_coordinates(location_name):
+    import json
     url = "https://www.onemap.gov.sg/api/common/elastic/search"
     params = {
         "searchVal": location_name,
@@ -15,6 +16,7 @@ def fetch_coordinates(location_name):
 
     response = requests.get(url, params=params)
     if response.status_code == 200:
+        print(json.dumps(response.json(), indent=4))
         data = response.json()
         if data["found"] > 0:
             return location_name, (

@@ -13,14 +13,17 @@ def process_file_coordinates(buffer: BytesIO):
     # Read parquet file into a DataFrame
     df = pd.read_parquet(buffer)
 
-    df["building_name"] = df["property_name"].apply(lambda x: x.split(" in ")[-1])
+    df["building_name"] = df["property_name"].apply(
+        lambda x: x.split(" in ")[-1])
     df["nearest_mrt"] = None
     df["distance_to_nearest_mrt"] = np.nan
     building_names = df["building_name"].unique()
 
     with ThreadPoolExecutor() as executor:
         print(executor._max_workers)
-        future_to_coords = {executor.submit(fetch_coordinates, name): name for name in building_names}
+        future_to_coords = {
+            executor.submit(fetch_coordinates, name): name
+            for name in building_names}
         for future in as_completed(future_to_coords):
             result = future.result()
             if result is None:
@@ -28,7 +31,8 @@ def process_file_coordinates(buffer: BytesIO):
 
             building_name, coords = result
             df.loc[df["building_name"] == building_name, "latitude"] = coords[0]
-            df.loc[df["building_name"] == building_name, "longitude"] = coords[1]
+            df.loc[df["building_name"] ==
+                   building_name, "longitude"] = coords[1]
 
     return df
 
@@ -36,7 +40,8 @@ def process_file_coordinates(buffer: BytesIO):
 def process_file_distance(buffer: BytesIO, df2: pd.DataFrame):
     df = pd.read_parquet(buffer)
     if "building_name" not in df.columns:
-        df["building_name"] = df["property_name"].apply(lambda x: x.split(" in ")[-1])
+        df["building_name"] = df["property_name"].apply(
+            lambda x: x.split(" in ")[-1])
 
     from find_closest import find_nearest
 
@@ -81,7 +86,7 @@ def backfill_coordinates():
                 s3_resource = boto3.resource("s3")
                 object = s3_resource.Object(bucket_name, file_name)
                 object.download_fileobj(buffer)
-                df = process_file(buffer)
+                df = process_file_coordinates(buffer)
                 print(df.head(3))
 
                 # Upload DataFrame to S3 as compressed parquet file

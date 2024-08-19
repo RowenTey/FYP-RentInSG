@@ -7,9 +7,9 @@ import pandas as pd
 import plotly.express as px
 import matplotlib.pyplot as plt
 import streamlit as st
+from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from components.constants import *
-from components.coordinates import fetch_coordinates
 from components.find_closest import find_nearest_single
 from components.motherduckdb_connector import connect_to_motherduckdb
 
@@ -24,16 +24,20 @@ st.info(
     """
     Fill in the form below with specific parameteres to predict monthly rental price of a property in Singapore.
     __(\\* indicates required fields)__
+    __(\\* indicates required fields)__
 """
 )
 
-# Load column transformer from pickle file to encode categorical columns and scale numerical columns
+# Load column transformer from pickle file to encode categorical columns
+# and scale numerical columns
 with open("static/column_transformer.pkl", "rb") as file:
     column_transformer = pickle.load(file)
 
 # Load catboost model from pickle file
 with open("static/catboost.pkl", "rb") as file:
     model = pickle.load(file)
+
+geocoder = Nominatim(user_agent="sg_rental_price_dashboard")
 
 
 @st.cache_data
@@ -62,28 +66,25 @@ def plot_feature_importances():
     st.plotly_chart(fig)
 
 
-# def plot_shap_summary(shap_values, features):
-#     st.subheader("SHAP Summary Plot")
-#     shap.summary_plot(shap_values, features, plot_type="bar")
-#     st.pyplot(bbox_inches='tight')
-
-# def plot_shap_waterfall(shap_values):
-#     st.subheader("SHAP Waterfall Plot")
-#     shap.waterfall_plot(shap_values[0])
-#     st.pyplot(bbox_inches='tight')
-
-def plot_shap_summary(explanation, feature_names):
-    st.subheader("SHAP Summary Plot")
-
+def update_feature_names(
+        explanation: shap.Explanation,
+        feature_names: list) -> shap.Explanation:
     # Create a mapping from transformed feature names to original feature names
     feature_map = {tf: map_transformed_feature_to_original(
         tf, feature_names) for tf in explanation.feature_names}
 
-    print(feature_map)
+    import json
+    print(json.dumps(feature_map, indent=3))
 
     # Update feature names in the explanation object
     explanation.feature_names = [feature_map.get(
         f, f) for f in explanation.feature_names]
+
+    return explanation
+
+
+def plot_shap_summary(explanation: shap.Explanation):
+    st.subheader("SHAP Summary Plot")
 
     # Create a new figure
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -97,18 +98,8 @@ def plot_shap_summary(explanation, feature_names):
     st.pyplot(fig, bbox_inches='tight')
 
 
-def plot_shap_waterfall(explanation, feature_names):
+def plot_shap_waterfall(explanation: shap.Explanation):
     st.subheader("SHAP Waterfall Plot")
-
-    # Create a mapping from transformed feature names to original feature names
-    feature_map = {tf: map_transformed_feature_to_original(
-        tf, feature_names) for tf in explanation.feature_names}
-
-    print(feature_map)
-
-    # Update feature names in the explanation object
-    explanation.feature_names = [feature_map.get(
-        f, f) for f in explanation.feature_names]
 
     # Create a new figure
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -132,8 +123,6 @@ def transform_form_data(form_data):
         elif key == "district_id":
             form_data[key] = DISTRICTS[form_data[key]]
 
-    form_data["latitude"] = None
-    form_data["longitude"] = None
     return form_data
 
 
@@ -156,6 +145,13 @@ def fetch_listings_within_radius(lat, lon, radius_km, listings_df):
 
 
 def plot_listings_on_map(listings, user_location):
+    # enforce latitude and longitude colummns to be numeric
+    listings["latitude"] = pd.to_numeric(listings["latitude"])
+    listings["longitude"] = pd.to_numeric(listings["longitude"])
+
+    # convert user_location tuple to float
+    user_location = [float(user_location[0]), float(user_location[1])]
+
     fig = px.scatter_mapbox(
         listings,
         lat="latitude",
@@ -164,10 +160,12 @@ def plot_listings_on_map(listings, user_location):
         hover_data={"price": True, "distance": True},
         color_discrete_sequence=["blue"],
         zoom=12,
-        height=400
+        height=600
     )
     user_location_df = pd.DataFrame(
-        [{"latitude": user_location[0], "longitude": user_location[1], "type": "User Location"}])
+        [{"latitude": user_location[0],
+          "longitude": user_location[1],
+          "type": "User Location"}])
     fig.add_trace(px.scatter_mapbox(
         user_location_df,
         lat="latitude",
@@ -176,10 +174,14 @@ def plot_listings_on_map(listings, user_location):
         color_discrete_sequence=["red"],
     ).data[0])
     fig.update_layout(mapbox_style="open-street-map")
+
+    st.subheader("Nearby Listings")
     st.plotly_chart(fig)
 
 
 def add_distance_info(validated_form_data, fill_default=False) -> dict:
+    import json
+
     enrichment = {
         "distance_to_mrt_in_m": (
             "SELECT * FROM mrt_info",
@@ -202,16 +204,31 @@ def add_distance_info(validated_form_data, fill_default=False) -> dict:
             ["name", "latitude", "longitude"],
         ),
     }
+
     # set the key in form data so default values are filled in later
     if fill_default:
         for key in enrichment.keys():
             validated_form_data[key] = None
+
+        with open("static/district_coords.json", "r") as f:
+            coords = json.load(f)
+
+        validated_form_data["latitude"] = coords[
+            validated_form_data["district_id"]][0]
+        validated_form_data["longitude"] = coords[
+            validated_form_data["district_id"]][1]
+
+        st.write("Added default distance values...")
+        st.write(
+            f"({validated_form_data['latitude']}, {validated_form_data['longitude']})")
+
         return validated_form_data
 
     db = connect_to_motherduckdb()
-    _, (validated_form_data["latitude"], validated_form_data["longitude"]) = fetch_coordinates(
-        validated_form_data["address"]
-    )
+
+    location = geocoder.geocode(f"{validated_form_data['address']}, Singapore")
+    validated_form_data["latitude"] = location.latitude
+    validated_form_data["longitude"] = location.longitude
 
     for key, val in enrichment.items():
         df2 = fetch_info(db, val[0], val[1])
@@ -241,7 +258,7 @@ def generate_shap_explanation(shap_values, feature_names, column_transformer):
     top_features = sorted_features[-5:]
     top_values = shap_values[0][sorted_idx][-5:]
 
-    explanation = "The rental price prediction is based on several factors. Here are the top 5 most influential features:\n\n"
+    explanation = "The rental price predicted is based on several factors. Here are the top 5 most influential features:\n\n"  # noqa: E501
 
     for feature, value in zip(reversed(top_features), reversed(top_values)):
         # Map back to original feature if possible
@@ -254,15 +271,17 @@ def generate_shap_explanation(shap_values, feature_names, column_transformer):
         else:
             direction = "decreased"
 
-        explanation += f"- {original_feature}: This feature {direction} the predicted rental price (relative impact: {abs(value):.4f}).\n"
+        explanation += f"- {original_feature}: This feature {direction} the predicted rental price (relative impact: {abs(value):.4f}).\n"  # noqa: E501
 
-    explanation += "\nThese values show the relative impact of each feature on the prediction compared to an average property."
+    explanation += "\nThese values highlight the relative impact of each feature on the prediction compared to an average property."  # noqa: E501
 
     return explanation
 
 
-def map_transformed_feature_to_original(transformed_feature, original_features):
-    # This function attempts to map transformed feature names back to original features
+def map_transformed_feature_to_original(
+        transformed_feature, original_features):
+    # This function attempts to map transformed feature names back to original
+    # features
     for original in original_features:
         if original in transformed_feature:
             return original
@@ -308,25 +327,25 @@ def process_form_data(model, column_transformer, form_data) -> float:
     shap_values = explainer(transformed_data)
 
     # Create a custom Explanation object
-    explanation = shap.Explanation(values=shap_values.values,
-                                   base_values=shap_values.base_values,
-                                   data=transformed_data,
-                                   feature_names=transformed_feature_names)
-
-    # plot_shap_waterfall(explainer(transformed_data))
-    plot_shap_waterfall(explanation, input_df.columns)
-    # plot_shap_summary(explanation, input_df.columns)
-
-    shap_explanation = generate_shap_explanation(
-        explainer.shap_values(transformed_data), input_df.columns, column_transformer)
-    st.write(shap_explanation)
+    explanation_obj = shap.Explanation(values=shap_values.values,
+                                       base_values=shap_values.base_values,
+                                       data=transformed_data,
+                                       feature_names=transformed_feature_names)
+    # st.write(shap_explanation)
 
     st.write("Making predictions...")
     time.sleep(1)
     # Make predictions using the model
     prediction, *_ = model.predict(transformed_data)
 
-    return prediction, shap_values, transformed_data, (
+    st.write("Generating description and plot...")
+    prediction_desc = generate_shap_explanation(
+        explainer.shap_values(transformed_data),
+        input_df.columns,
+        column_transformer)
+    explanation_obj = update_feature_names(explanation_obj, input_df.columns)
+
+    return prediction, explanation_obj, prediction_desc, (
         validated_form_data["latitude"], validated_form_data["longitude"])
 
 
@@ -458,33 +477,67 @@ def get_form_data():
             st.rerun()
 
 
+def plot_shap_summary_and_waterfall(explanation: shap.Explanation):
+    st.subheader("Plots")
+
+    # Create two columns
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("SHAP Summary Plot")
+        # Create a new figure for the summary plot
+        fig_summary, ax_summary = plt.subplots(figsize=(10, 8))
+
+        # Plot the SHAP summary plot
+        shap.summary_plot(explanation.values, explanation.data,
+                          feature_names=explanation.feature_names,
+                          plot_type="bar", show=False)
+
+        plt.tight_layout()
+        st.pyplot(fig_summary, bbox_inches='tight')
+
+    with col2:
+        st.subheader("SHAP Waterfall Plot")
+        # Create a new figure for the waterfall plot
+        fig_waterfall, ax_waterfall = plt.subplots(figsize=(10, 8))
+
+        # Plot the SHAP waterfall plot
+        shap.plots.waterfall(explanation[0], show=False)
+
+        plt.tight_layout()
+        st.pyplot(fig_waterfall, bbox_inches='tight')
+
+
 with st.spinner("Loading page data..."):
     get_form_data()
 
-    with st.expander("Show Feature Importances"):
-        plot_feature_importances()
+    # with st.expander("Show Feature Importances"):
+    #     plot_feature_importances()
 
 if "form_data" in st.session_state:
     with st.status("Predicting rental price...", expanded=True) as status:
         result = st.session_state.pop("form_data")
-        prediction, shap_values, input_df, user_coords = process_form_data(
+        prediction, explanation_obj, desc, user_coords = process_form_data(
             model, column_transformer, result)
         status.update(label="Prediction Completed",
                       state="complete", expanded=False)
 
     st.success(f"Predicted Rental Price: SGD **{prediction:.2f}/month**")
-    st.toast("Prediction Completed", icon="🎉")
 
     # Plot SHAP values
-    # plot_shap_summary(shap_values, input_df)
-    # plot_shap_waterfall(shap_values)
+    plot_shap_summary_and_waterfall(explanation_obj)
+    st.write(desc)
 
     # Load local listings data
     listings_df = load_local_data("static/training_data_v3_cleaned.csv")
 
     # Fetch and plot listings within a radius
-    radius_km = 100
+    radius_km = 5
     nearby_listings = fetch_listings_within_radius(
         user_coords[0], user_coords[1], radius_km, listings_df)
-    print(nearby_listings)
     plot_listings_on_map(nearby_listings, user_coords)
+
+    # st.write(user_coords)
+    # st.write(nearby_listings[["property_name", "district", "distance"]])
+
+    st.toast("Prediction Completed", icon="🎉")

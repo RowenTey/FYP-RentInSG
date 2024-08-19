@@ -15,7 +15,9 @@ def fetch_primary_school_info():
     df = pd.read_html(str(table))[0]
 
     with ThreadPoolExecutor() as executor:
-        future_to_coords = {executor.submit(fetch_coordinates, name): name for name in df["Name"]}
+        future_to_coords = {
+            executor.submit(fetch_coordinates, name): name
+            for name in df["Name"]}
         for future in as_completed(future_to_coords):
             result = future.result()
             if result is None:
@@ -30,6 +32,8 @@ def fetch_primary_school_info():
 
 
 def fetch_mall_info():
+    import re
+
     url = "https://en.wikipedia.org/wiki/List_of_shopping_malls_in_Singapore"
     r = requests.get(url)
     soup = BeautifulSoup(r.content, "html.parser")
@@ -42,7 +46,9 @@ def fetch_mall_info():
     df = pd.DataFrame(malls, columns=["name"])
 
     with ThreadPoolExecutor() as executor:
-        future_to_coords = {executor.submit(fetch_coordinates, name): name for name in df["name"]}
+        future_to_coords = {
+            executor.submit(fetch_coordinates, name): name
+            for name in df["name"]}
         for future in as_completed(future_to_coords):
             result = future.result()
             if result is None:

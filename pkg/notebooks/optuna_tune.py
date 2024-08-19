@@ -2,7 +2,7 @@ import optuna
 import pandas as pd
 import numpy as np
 import catboost as cb
-from sklearn.metrics import mean_squared_error, mean_absolute_error, explained_variance_score
+from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
@@ -68,7 +68,8 @@ class OutlierHandlerIQR(BaseEstimator, TransformerMixin):
 
 class OutlierHandlerSD(BaseEstimator, TransformerMixin):
     def fit(self, X, y):
-        # Calculate mean, standard deviation, and cutoff values of target label (y)
+        # Calculate mean, standard deviation, and cutoff values of target label
+        # (y)
         self.mean = y.mean()
         self.sd = y.std()
         self.lower_cutoff = self.mean - 2.5 * self.sd
@@ -94,7 +95,8 @@ class OutlierHandlerSD(BaseEstimator, TransformerMixin):
 # the use of fit is to find the mean and variance
 X_train_1 = column_transformer.fit_transform(X_train)
 
-# For the test dataset, you do not need to use fit again, as we are using the mean and variance from the train dataset
+# For the test dataset, you do not need to use fit again, as we are using
+# the mean and variance from the train dataset
 X_test_1 = column_transformer.transform(X_test)
 
 handler = OutlierHandlerIQR()
@@ -106,12 +108,13 @@ X_test_1, y_test = handler.transform(X_test_1, y_test)
 def objective(trial):
     params = {
         "iterations": trial.suggest_int("iterations", 1000, 3000),
-        "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.1, log=True),
+        "learning_rate": trial.suggest_float(
+            "learning_rate", 1e-3, 0.1, log=True),
         "depth": trial.suggest_int("depth", 1, 10),
         "subsample": trial.suggest_float("subsample", 0.05, 1.0),
-        "colsample_bylevel": trial.suggest_float("colsample_bylevel", 0.05, 1.0),
-        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 100),
-    }
+        "colsample_bylevel": trial.suggest_float(
+            "colsample_bylevel", 0.05, 1.0),
+        "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 1, 100), }
 
     model = cb.CatBoostRegressor(**params, silent=True)
     model.fit(X_train_1, y_train)
@@ -165,5 +168,5 @@ print('Best RMSE:', study.best_value)
 
 # # print(catboost(X_train_1, y_train, X_test_1, y_test, {'iterations': 1000, 'learning_rate': 0.08981971475423699,
 # #       'depth': 9, 'subsample': 0.429612270456331, 'colsample_bylevel': 0.9962717560011394, 'min_data_in_leaf': 14}))
-# print(catboost(X_train_1, y_train, X_test_1, y_test, {'iterations': 1000, 'learning_rate': 0.09625671943145078, 'depth': 10,
+# print(catboost(X_train_1, y_train, X_test_1, y_test, {'iterations': 1000, 'learning_rate': 0.09625671943145078, 'depth': 10, # noqa: E501
 #       'subsample': 0.9032672919879902, 'colsample_bylevel': 0.8031720441028976, 'min_data_in_leaf': 92}))

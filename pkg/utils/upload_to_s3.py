@@ -27,7 +27,9 @@ def load_uploaded_hashes(hash_file_path: str) -> list[dict]:
     return []
 
 
-def save_uploaded_hashes(hash_file_path: str, uploaded_hashes: list[dict]) -> None:
+def save_uploaded_hashes(
+        hash_file_path: str,
+        uploaded_hashes: list[dict]) -> None:
     """
     Save uploaded hashes to a file.
 
@@ -74,7 +76,11 @@ def parquet(df: pd.DataFrame) -> BytesIO:
     return data
 
 
-def convert_csv_to_parquet_and_upload(csv_file_path: str, s3_client, bucket_name: str, s3_file_path: str) -> None:
+def convert_csv_to_parquet_and_upload(
+        csv_file_path: str,
+        s3_client,
+        bucket_name: str,
+        s3_file_path: str) -> None:
     """
     Convert a CSV file to Parquet format and upload it to S3.
 
@@ -147,7 +153,8 @@ def upload_files_to_s3(local_directories: str, bucket_name: str) -> None:
 
                 s3_file_path = s3_file_path.replace("pkg/", "")
 
-                # handle case where s3_file_path starts with '/' due to os.path.sep between Windows and Linux
+                # handle case where s3_file_path starts with '/' due to
+                # os.path.sep between Windows and Linux
                 if s3_file_path.startswith("/"):
                     s3_file_path = s3_file_path[1:]
 
@@ -172,7 +179,8 @@ def upload_files_to_s3(local_directories: str, bucket_name: str) -> None:
 
                 # Add the hash with timestamp to the list of uploaded hashes
                 updated_hashes.append(
-                    {"hash": file_hash, "timestamp": current_time.strftime(DATETIME_FORMAT)})
+                    {"hash": file_hash, "timestamp": current_time.strftime(
+                        DATETIME_FORMAT)})
                 updated_hashes_set.add(file_hash)
 
     # Save updated hashes to the file

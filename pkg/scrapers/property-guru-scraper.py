@@ -82,10 +82,16 @@ class PropertyGuruScraper(AbstractPropertyScraper):
             elif bedrooms_element:
                 bedrooms = int(bedrooms_element.split(' ')[0])
 
-            bathrooms = int(self.soup.find(
-                'i', class_='pgicon-bathroom').find_next_sibling('h4').text.split(' ')[0])
-            dimensions = int(self.soup.find('i', class_='pgicon-dimensions')
-                             .find_next_sibling('h4').text.replace(',', '').split(' ')[0])
+            bathrooms = int(
+                self.soup.find(
+                    'i',
+                    class_='pgicon-bathroom').find_next_sibling('h4').text.split(' ')[0])
+            dimensions = int(
+                self.soup.find(
+                    'i',
+                    class_='pgicon-dimensions') .find_next_sibling('h4').text.replace(
+                    ',',
+                    '').split(' ')[0])
 
             self.output["bedroom"] = bedrooms
             self.output["bathroom"] = bathrooms
@@ -254,9 +260,9 @@ class PropertyGuruScraper(AbstractPropertyScraper):
         # Scrape rental info for each property
         rental_infos = []
         logging.info(
-            "A total of " + str(min(self.properties_per_page,
-                                len(self.props))) + " properties will be scraped."
-        )
+            "A total of " +
+            str(min(self.properties_per_page, len(self.props))) +
+            " properties will be scraped.")
 
         for i, prop in enumerate(self.props):
             # only scrape self.properties_per_page per district
@@ -268,7 +274,8 @@ class PropertyGuruScraper(AbstractPropertyScraper):
                 rental_infos.append(rental_info)
 
             logging.info(
-                str(i + 1) + "/" + str(min(self.properties_per_page, len(self.props))) + " done!")
+                str(i + 1) + "/" +
+                str(min(self.properties_per_page, len(self.props))) + " done!")
 
         self.create_dataframe(rental_infos, district)
 
@@ -331,8 +338,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s : %(filename)s-%(lineno)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
+        datefmt="%H:%M:%S",)
 
     try:
         start = time.time()

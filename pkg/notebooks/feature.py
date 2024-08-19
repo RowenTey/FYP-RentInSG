@@ -69,8 +69,12 @@ combined_importances_df.to_csv('static/feature_importance.csv', index=False)
 
 # Visualize the combined feature importances
 plt.figure(figsize=(10, 6))
-plt.barh(width='importance', y='feature', data=combined_importances_df.sort_values(
-    by='importance', ascending=False))
+plt.barh(
+    width='importance',
+    y='feature',
+    data=combined_importances_df.sort_values(
+        by='importance',
+        ascending=False))
 plt.title('Rental Price Prediction Feature Importances')
 plt.xlabel('Importance')
 plt.ylabel('Features')

@@ -56,20 +56,11 @@
   docker run -it --entrypoint=/bin/bash <image-name> -i
   ```
 
-### Transformer OOM Debug
-
-Out of memory: Killed process 179407 (python) total-vm:1300024kB, anon-rss:453436kB, file-rss:2944kB, shmem-rss:0kB, UID:0 pgtables:1288kB oom_score_adj:0
-
-Killed process 179325 (python) total-vm:1300028kB, anon-rss:455484kB, file-rss:2816kB, shmem-rss:0kB, UID:0 pgtables:1284kB oom_score_adj:0
-
-Out of memory: Killed process 179407 (python) total-vm:1300024kB, anon-rss:453436kB, file-rss:2944kB, shmem-rss:0kB, UID:0 pgtables:1288kB oom_score_adj:0
-
-python invoked oom-killer: gfp_mask=0x140dca(GFP_HIGHUSER_MOVABLE|**GFP_COMP|**GFP_ZERO), order=0, oom_score_adj=0
-
 ### View CRON Jobs Log
 
 You can view them at `/var/log/syslog`.
 
 ### Docker _"exec: required file not found"_ error
 
-Change the line ending format from CRLF (Windows) to LF (Linux)
+Change the line ending format from CRLF (Windows) to LF (Linux).  
+Reference: https://stackoverflow.com/questions/38905135/why-wont-my-docker-entrypoint-sh-execute

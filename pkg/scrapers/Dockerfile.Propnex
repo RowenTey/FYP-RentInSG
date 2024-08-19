@@ -13,10 +13,6 @@ RUN apt-get update && \
     wget -O /tmp/chromedriver.zip https://storage.googleapis.com/chrome-for-testing-public/126.0.6478.61/linux64/chromedriver-linux64.zip && \
     unzip /tmp/chromedriver.zip -d /tmp/chromedriver && \
     mv /tmp/chromedriver/chromedriver-linux64/chromedriver /usr/local/bin/ && \
-    # rm -rf /var/lib/apt/lists/* /tmp/chromedriver.zip /tmp/chromedriver && \
-    # rm -rf /tmp/chromedriver.zip /tmp/chromedriver && \
-    # apt-get remove --purge -y wget gnupg2 unzip && \
-    # apt-get autoremove -y && \
     apt-get clean
 
 # set display port to avoid crash

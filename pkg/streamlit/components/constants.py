@@ -86,6 +86,8 @@ DEFAULT_VALUES = {
     "distance_to_supermarket_in_m": 651.937988,
     "distance_to_sch_in_m": 564.494995,
     "distance_to_mall_in_m": 631.247009,
+    "latitude": None,
+    "longitude": None
 }
 
 REQUIRED_FIELDS = ["bedrooms", "bathrooms", "dimensions", "district_id"]

@@ -20,9 +20,14 @@ def haversine(coord1, coord2):
     return R * c * 1000  # convert to meters
 
 
-def find_nearest(df1, df2, target_landmark, distance_to_target_landmark, is_inference=False):
+def find_nearest(
+        df1,
+        df2,
+        target_landmark,
+        distance_to_target_landmark,
+        is_inference=False):
     """
-    Taken from https://medium.com/@michael.wy.ong/web-scrape-geospatial-data-analyse-singapores-property-price-part-i-276caba320b
+    Taken from https://medium.com/@michael.wy.ong/web-scrape-geospatial-data-analyse-singapores-property-price-part-i-276caba320b # noqa: E501
 
     This function finds the nearest locations from the 2nd table from the 1st address
     df2 format:
@@ -55,8 +60,10 @@ def find_nearest(df1, df2, target_landmark, distance_to_target_landmark, is_infe
                 landmark_info[1] = eachloc
                 landmark_info[2] = round(distance, 3)
 
-        df1.loc[df1["building_name"] == building_name, target_landmark] = landmark_info[0]
-        df1.loc[df1["building_name"] == building_name, distance_to_target_landmark] = landmark_info[2]
+        df1.loc[df1["building_name"] == building_name,
+                target_landmark] = landmark_info[0]
+        df1.loc[df1["building_name"] == building_name,
+                distance_to_target_landmark] = landmark_info[2]
 
     return df1
 
@@ -85,7 +92,8 @@ if __name__ == "__main__":
     print()
     df2 = df2[["station_name", "latitude", "longitude"]]
 
-    df1["building_name"] = df1["property_name"].apply(lambda x: x.split(" in ")[-1])
+    df1["building_name"] = df1["property_name"].apply(
+        lambda x: x.split(" in ")[-1])
 
     df1 = find_nearest(df1, df2, "nearest_mrt", "distance_to_nearest_mrt")
     print(df1[["property_name", "nearest_mrt", "distance_to_nearest_mrt"]])

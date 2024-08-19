@@ -96,10 +96,13 @@ def extract_relevant_code(row, mapping):
         line_codes = line_code.split(" | ")
         relevant_codes = []
         for line_code in line_codes:
-            relevant_codes.extend([code for code in station_codes if code.startswith(line_code)])
+            relevant_codes.extend(
+                [code for code in station_codes
+                 if code.startswith(line_code)])
         return " ".join(relevant_codes) if relevant_codes else None
 
-    relevant_codes = [code for code in station_codes if code.startswith(line_code)]
+    relevant_codes = [code for code in station_codes
+                      if code.startswith(line_code)]
     return " ".join(relevant_codes) if relevant_codes else None
 
 
@@ -196,11 +199,15 @@ def transform_data(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         1   Bukit Batok  103.749567  1.349057
         ...
     """
-    gdf["longitude"], gdf["latitude"] = zip(*gdf["geometry"].apply(lambda x: convert_to_4326_WGS84_coordinates(str(x))))
+    gdf["longitude"], gdf["latitude"] = zip(
+        *gdf["geometry"].apply(lambda x: convert_to_4326_WGS84_coordinates(str(x))))
     gdf = gdf.rename(columns={"STN_NAM_DE": "station_name"})
     gdf["station_name"] = (
-        gdf["station_name"].str.replace(" MRT STATION", "").str.replace(" LRT STATION", "").apply(convert_to_camel_case)
-    )
+        gdf["station_name"].str.replace(
+            " MRT STATION",
+            "").str.replace(
+            " LRT STATION",
+            "").apply(convert_to_camel_case))
 
     return gdf[["station_name", "longitude", "latitude"]]
 
@@ -229,8 +236,10 @@ def scrape_mrt_and_lrt_data() -> pd.DataFrame:
         table = soup.find("table")
         rows = table.find_all("tr")
 
-        # Determine if the data is for MRT or LRT based on the number of columns
-        headers = mrt_columns if len(rows[0].find_all("th")) == len(mrt_columns) else lrt_columns
+        # Determine if the data is for MRT or LRT based on the number of
+        # columns
+        headers = mrt_columns if len(rows[0].find_all(
+            "th")) == len(mrt_columns) else lrt_columns
 
         data = []
         for row in rows[1:]:
@@ -243,8 +252,11 @@ def scrape_mrt_and_lrt_data() -> pd.DataFrame:
         dfs.append(gdf)
 
     missing_data = (
-        pd.DataFrame.from_dict(MISSING_STATIONS, orient="index").reset_index().rename(columns={"index": "station_name"})
-    )
+        pd.DataFrame.from_dict(
+            MISSING_STATIONS,
+            orient="index").reset_index().rename(
+            columns={
+                "index": "station_name"}))
     dfs.append(missing_data)
 
     return pd.concat(dfs, ignore_index=True)
@@ -277,7 +289,9 @@ def shp_to_csv(shp_file_path, csv_file_path) -> None:
     print(mrt_info[mrt_info["line"] == "Sengkang LRT"])
 
     gdf = gdf.merge(mrt_info, how="left", on="station_name")
-    gdf["station_code"] = gdf.apply(lambda row: extract_relevant_code(row, MRT_LINE_TO_CODE_MAP), axis=1)
+    gdf["station_code"] = gdf.apply(
+        lambda row: extract_relevant_code(
+            row, MRT_LINE_TO_CODE_MAP), axis=1)
     gdf.drop(gdf[gdf["line"].isna()].index, inplace=True)
     gdf.drop_duplicates(subset=["station_name", "line"], inplace=True)
     print(gdf)
@@ -295,4 +309,5 @@ if __name__ == "__main__":
     CSV_FILE_PATH = "..\\data\\mrt_lrt_sg.csv"
 
     shp_to_csv(SHP_FILE_PATH, CSV_FILE_PATH)
-    print(f"Conversion from Shapefile to CSV completed. CSV file saved at: {CSV_FILE_PATH}")
+    print(
+        f"Conversion from Shapefile to CSV completed. CSV file saved at: {CSV_FILE_PATH}")

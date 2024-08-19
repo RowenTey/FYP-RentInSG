@@ -1,7 +1,6 @@
 from airflow import DAG
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.operators.python import PythonOperator
-from lib.utils.notify import send_message
 from lib.utils.parquet import parquet
 from lib.transformers.transform import transform
 from datetime import datetime
@@ -24,6 +23,7 @@ dag = DAG(
     'data_pipeline_xcom',
     default_args=default_args,
     catchup=False,
+    catchup=False,
     description='A test DAG to test XCOM',
     schedule_interval='0 3 * * *',  # Run the DAG daily at 3 AM UTC
 )
@@ -44,9 +44,9 @@ def fetch_csv_from_volume(**kwargs):
     Raises:
         None.
 
-    This function uses the `docker` library to create a Docker client and run a container. It retrieves the content of a CSV file
-    located in the `/app/output/{DATE_STR}.csv` path within the container. The `DATE_STR` variable is expected to be defined
-    elsewhere in the code. The container is configured with the `scraper_data` volume, which is mounted in read-only mode.
+    This function uses the `docker` library to create a Docker client and run a container. It retrieves the content of a CSV file # noqa: E501
+    located in the `/app/output/{DATE_STR}.csv` path within the container. The `DATE_STR` variable is expected to be defined # noqa: E501
+    elsewhere in the code. The container is configured with the `scraper_data` volume, which is mounted in read-only mode. # noqa: E501
     The container is removed after the content is retrieved.
 
     Note:
@@ -93,6 +93,10 @@ def upload_to_s3(s3_bucket, s3_key, **kwargs):
     Raises:
         None
 
+    This function uploads a local file to an S3 bucket using the provided S3 bucket and key.
+    The local file path is obtained from the TaskInstance (ti) using the task_ids 'fetch_csv'.
+    The function first prints the local file path being uploaded to S3.
+    It then uses the S3Hook to load the file into the S3 bucket.
     This function uploads a local file to an S3 bucket using the provided S3 bucket and key.
     The local file path is obtained from the TaskInstance (ti) using the task_ids 'fetch_csv'.
     The function first prints the local file path being uploaded to S3.
@@ -184,7 +188,10 @@ docker_task = DockerOperator(
     api_version='auto',
     auto_remove=True,
     mounts=[
-        Mount(source='scraper_data', target='/app/pkg/rental_prices/propnex', type='volume'),
+        Mount(
+            source='scraper_data',
+            target='/app/pkg/rental_prices/propnex',
+            type='volume'),
     ],
     # Specify the Docker daemon socket
     docker_url='unix://var/run/docker.sock',

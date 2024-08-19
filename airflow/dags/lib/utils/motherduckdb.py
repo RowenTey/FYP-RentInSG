@@ -11,7 +11,7 @@ class MotherDuckDBConnector:
     def create_s3_secret(self, aws_access_key_id: str, aws_secret_access_key: str, aws_region: str):
         # Create a secret to set AWS credentials
         self.connection.sql(
-            f"CREATE OR REPLACE SECRET (TYPE S3, S3_ACCESS_KEY_ID '{aws_access_key_id}', S3_SECRET_ACCESS_KEY '{aws_secret_access_key}', S3_REGION '{aws_region}')"
+            f"CREATE OR REPLACE SECRET (TYPE S3, S3_ACCESS_KEY_ID '{aws_access_key_id}', S3_SECRET_ACCESS_KEY '{aws_secret_access_key}', S3_REGION '{aws_region}')"  # noqa: E501
         )
 
     def check_connection(self):
@@ -19,7 +19,11 @@ class MotherDuckDBConnector:
         self.connection.sql("USE fyp_rent_in_sg")
         self.show_tables()
 
-    def create_table_from_s3(self, table_name: str, s3_bucket: str, s3_filepath: str):
+    def create_table_from_s3(
+            self,
+            table_name: str,
+            s3_bucket: str,
+            s3_filepath: str):
         # Create table if it doesn't exist and import data from S3
         self.connection.sql(
             f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM 's3://{s3_bucket}/{s3_filepath}'"
@@ -38,7 +42,10 @@ class MotherDuckDBConnector:
         print(f"Running query: {query}")
         return self.connection.sql(query).df()
 
-    def query_df_in_batch(self, query: str, batch_size: int = 1000) -> DataFrame:
+    def query_df_in_batch(
+            self,
+            query: str,
+            batch_size: int = 1000) -> DataFrame:
         cursor = self.connection.cursor()
         cursor.execute(query)
 
@@ -60,7 +67,12 @@ class MotherDuckDBConnector:
         cursor.close()
         return df
 
-    def update_table(self, table_name: str, key_col: str, updated_cols: list, df: DataFrame):
+    def update_table(
+            self,
+            table_name: str,
+            key_col: str,
+            updated_cols: list,
+            df: DataFrame):
         logging.info(f"Updating table {table_name} with {len(df)} rows...")
 
         # Update the table with values from a DataFrame
@@ -78,7 +90,8 @@ class MotherDuckDBConnector:
 
     def insert_df(self, table_name: str, df: DataFrame):
         # make sure df matches schema of table_name
-        return self.connection.sql(f"INSERT OR IGNORE INTO {table_name} SELECT * FROM df")
+        return self.connection.sql(
+            f"INSERT OR IGNORE INTO {table_name} SELECT * FROM df")
 
     def begin_transaction(self):
         """Start a new transaction."""

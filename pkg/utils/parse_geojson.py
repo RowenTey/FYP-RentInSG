@@ -1,17 +1,16 @@
 import json
-import logging
 
 import geopandas as gpd
 import pandas as pd
 from bs4 import BeautifulSoup
-from shapely import wkt
 from shapely.geometry import Point, Polygon
 from shapely.ops import unary_union
 from utils.location_constants import PLAN_AREA_MAPPING
 
 
 def parse_plan_area_geojson(file_path):
-    # for parsing SingaporeResidentsbySubzoneAgeGroupandSexJun2018Gender.geojson
+    # for parsing
+    # SingaporeResidentsbySubzoneAgeGroupandSexJun2018Gender.geojson
 
     # Load the GeoJSON file
     with open(file_path, "r") as f:
@@ -46,7 +45,10 @@ def parse_plan_area_geojson(file_path):
         polygon = Polygon(coordinates)
 
         # Add parsed properties to the list
-        geo_data = {"subzone": subzone, "plan_area": plan_area, "polygon": polygon}
+        geo_data = {
+            "subzone": subzone,
+            "plan_area": plan_area,
+            "polygon": polygon}
         geometry_data.append(geo_data)
 
     # Create pandas DataFrames
@@ -75,9 +77,12 @@ def parse_hawker_centre_geojson(file_path):
         # Parse HTML description to extract SUBZONE_N
         soup = BeautifulSoup(description_html, "html.parser")
         name = soup.find("th", string="NAME").find_next("td").text
-        building_name = soup.find("th", string="ADDRESSBUILDINGNAME").find_next("td").text
-        street_name = soup.find("th", string="ADDRESSSTREETNAME").find_next("td").text
-        postal_code = soup.find("th", string="ADDRESSPOSTALCODE").find_next("td").text
+        building_name = soup.find(
+            "th", string="ADDRESSBUILDINGNAME").find_next("td").text
+        street_name = soup.find(
+            "th", string="ADDRESSSTREETNAME").find_next("td").text
+        postal_code = soup.find(
+            "th", string="ADDRESSPOSTALCODE").find_next("td").text
 
         # Parse geometry
         geometry = feature["geometry"]
@@ -149,10 +154,12 @@ def process_plan_area_geometries(df, group_column, geometry_column):
     df["is_valid"] = df[geometry_column].apply(lambda x: x.is_valid)
 
     # Attempt to fix invalid polygons
-    df[geometry_column] = df[geometry_column].apply(lambda x: x.buffer(0) if not x.is_valid else x)
+    df[geometry_column] = df[geometry_column].apply(
+        lambda x: x.buffer(0) if not x.is_valid else x)
 
     # Perform unary_union
-    return df.groupby(group_column)[geometry_column].apply(unary_union).reset_index()
+    return df.groupby(group_column)[geometry_column].apply(
+        unary_union).reset_index()
 
 
 def get_district(lat, long, gdf: gpd.GeoDataFrame):
@@ -170,9 +177,9 @@ def get_district(lat, long, gdf: gpd.GeoDataFrame):
 
 if __name__ == "__main__":
     # Example to load from file
-    # file_path = r'C:\Users\kaise\OneDrive\Desktop\Codebase\FYP\data\SingaporeResidentsbySubzoneAgeGroupandSexJun2018Gender.geojson'
+    # file_path = r'C:\Users\kaise\OneDrive\Desktop\Codebase\FYP\data\SingaporeResidentsbySubzoneAgeGroupandSexJun2018Gender.geojson' # noqa: E501
     # geometry_df = parse_geojson(file_path)
-    # geometry_df = process_geometries(geometry_df, 'plan_area', 'polygon')
+    # geometry_df = process_geometries(geometry_df, 'plan_area', 'polygon') # noqa: E501
 
     # Example to load from DB
     # logging.basicConfig(level=logging.INFO)

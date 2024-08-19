@@ -28,6 +28,7 @@ dag = DAG(
     'propnex_etl',
     default_args=default_args,
     catchup=False,
+    catchup=False,
     description='A DAG to scrape data from Propnex and upload to S3',
     schedule_interval='0 7 * * *',
 )
@@ -99,6 +100,10 @@ def upload_to_s3(s3_bucket, s3_key, **kwargs):
     The local file path is obtained from the TaskInstance (ti) using the task_ids 'fetch_csv'.
     The function first prints the local file path being uploaded to S3.
     It then uses the S3Hook to load the file into the S3 bucket.
+    This function uploads a local file to an S3 bucket using the provided S3 bucket and key.
+    The local file path is obtained from the TaskInstance (ti) using the task_ids 'fetch_csv'.
+    The function first prints the local file path being uploaded to S3.
+    It then uses the S3Hook to load the file into the S3 bucket.
     Finally, it prints a message indicating that the file has been uploaded to S3.
 
     Note:
@@ -147,6 +152,7 @@ docker_task = DockerOperator(
     task_id='scrape_data',
     image=DOCKER_IMAGE,
     api_version='auto',
+    auto_remove=True,
     auto_remove=True,
     mounts=[
         Mount(source=DOCKER_TARGET_VOLUME, target=DOCKER_VOLUME_DIR, type='volume'),

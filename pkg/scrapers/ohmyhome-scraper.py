@@ -1,6 +1,5 @@
 import argparse
 import logging
-import re
 import random
 import time
 import copy
@@ -8,6 +7,7 @@ import copy
 import pandas as pd
 from bs4 import BeautifulSoup
 from scraper import AbstractPropertyScraper
+from fake_useragent import UserAgent
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -16,6 +16,10 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 # suppress warnings
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+logging.getLogger("selenium.webdriver.remote.remote_connection").setLevel(
+    logging.CRITICAL)
+logging.getLogger("selenium.webdriver.common.selenium_manager").setLevel(
+    logging.CRITICAL)
 
 
 class OhMyHomeScraper(AbstractPropertyScraper):
@@ -39,15 +43,18 @@ class OhMyHomeScraper(AbstractPropertyScraper):
         self.page_json = None
 
     def init_driver(self):
+        user_agent = UserAgent().random
+
         # Set up Chrome options for headless mode
         chrome_options = Options()
-        chrome_options.add_argument("--headless")
+        # chrome_options.add_argument("--headless")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--log-level=3")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-infobars")
         chrome_options.add_argument("--disable-dev-shm-usage")
-        # chrome_options.add_argument("window-size=1400,1500")
+        chrome_options.add_argument(f"--user-agent={user_agent}")
+        chrome_options.add_argument("window-size=100,100")
 
         # Start Chrome browser
         return webdriver.Chrome(options=chrome_options)
@@ -75,15 +82,18 @@ class OhMyHomeScraper(AbstractPropertyScraper):
 
                 soup = BeautifulSoup(self.html_content, "html.parser")
 
-                if "captcha" in soup.text:
+                if "captcha" in self.html_content:
+                    self.driver.quit()
+                    self.driver = self.init_driver()
                     self.handle_retry("CAPTCHA", trial)
                     continue
 
                 if has_pages and not soup.select_one(self.pagination_element):
+                    logging.debug(self.html_content)
                     self.handle_retry("No pages", trial)
                     continue
 
-                if "No Results" in soup.text:
+                if "No Results" in self.html_content:
                     logging.info(f"Invalid URL: {url}, exiting...")
                     exit(1)
 
@@ -95,7 +105,8 @@ class OhMyHomeScraper(AbstractPropertyScraper):
             return None
 
     def fetch_next_page(self, page_num):
-        # find button with page_num in its text and click it then return the soup
+        # find button with page_num in its text and click it then return the
+        # soup
         try:
             page_button = self.driver.find_element(
                 By.XPATH, f"//button[text()='{page_num}']")
@@ -141,12 +152,11 @@ class OhMyHomeScraper(AbstractPropertyScraper):
     def link_scraper(self, soup):
         links = []
         units = soup.find("div", class_="css-tewpva")
-        # iterate through its children
         for unit in units.children:
             if "href" not in unit.attrs:
                 continue
             links.append(unit.attrs["href"])
-        logging.info(f"Found {len(links)} links.")
+        logging.info(f"Found {len(links)} property links.")
         return links
 
     def get_price(self) -> bool:
@@ -175,7 +185,7 @@ class OhMyHomeScraper(AbstractPropertyScraper):
             beds = bed_img.find_parent(
                 "span").next_sibling.get_text(strip=True)
             self.output["bedroom"] = beds
-            logging.info(f"Scraped beds: {beds}")
+            logging.debug(f"Scraped beds: {beds}")
         except Exception as err:
             logging.info(f"Error scraping beds: {err}")
 
@@ -185,7 +195,7 @@ class OhMyHomeScraper(AbstractPropertyScraper):
             baths = bath_img.find_parent(
                 "span").next_sibling.get_text(strip=True)
             self.output["bathroom"] = baths
-            logging.info(f"Scraped baths: {baths}")
+            logging.debug(f"Scraped baths: {baths}")
         except Exception as err:
             logging.info(f"Error scraping baths: {err}")
 
@@ -195,7 +205,7 @@ class OhMyHomeScraper(AbstractPropertyScraper):
             dimensions = dimensions_img.find_parent(
                 "span").next_sibling.get_text(strip=True)
             self.output["dimensions"] = dimensions
-            logging.info(f"Scraped dimensions: {dimensions}")
+            logging.debug(f"Scraped dimensions: {dimensions}")
         except Exception as err:
             logging.info(f"Error scraping dimensions: {err}")
 
@@ -226,7 +236,7 @@ class OhMyHomeScraper(AbstractPropertyScraper):
                 elif label == "Completion":
                     self.output["built_year"] = val
 
-                logging.info(f"Scraped {label}: {val}")
+                logging.debug(f"Scraped {label}: {val}")
         except Exception as err:
             logging.info(f"Error scraping more details: {err}")
 
@@ -234,7 +244,7 @@ class OhMyHomeScraper(AbstractPropertyScraper):
             floor_level_div = self.soup.find("div", class_="css-j7qwjs")
             self.output["floor_level"] = floor_level_div.get_text(
                 strip=True).split(":")[-1]
-            logging.info(f"Scraped floor level: {self.output['floor_level']}")
+            logging.debug(f"Scraped floor level: {self.output['floor_level']}")
         except Exception as err:
             logging.info(f"Error scraping floor level: {err}")
 
@@ -242,7 +252,7 @@ class OhMyHomeScraper(AbstractPropertyScraper):
             address_div = self.soup.find("div", class_="css-128dp9s")
             self.output["address"] = address_div.get_text(
                 separator=" | ", strip=True)
-            logging.info(f"Scraped address: {self.output['address']}")
+            logging.debug(f"Scraped address: {self.output['address']}")
         except Exception as err:
             logging.info(f"Error scraping address: {err}")
 
@@ -252,7 +262,7 @@ class OhMyHomeScraper(AbstractPropertyScraper):
             description = description_div.get_text(strip=True)
             self.output["furnished"] = "Fully Furnished" \
                 if "fully furnished" in description.lower() else "Unfurnished"
-            logging.info(f"Scraped furnished: {self.output['furnished']}")
+            logging.debug(f"Scraped furnished: {self.output['furnished']}")
         except Exception as err:
             logging.info(f"Error scraping furnished: {err}")
 
@@ -267,18 +277,20 @@ class OhMyHomeScraper(AbstractPropertyScraper):
             data = json.loads(json_data)
             self.page_json = data
 
-            self.output["latitude"] = data["props"]["pageProps"]["listing"]["address"]["latitude"]
+            self.output["latitude"] = data["props"]["pageProps"]["listing"][
+                "address"]["latitude"]
             self.output["longitude"] = data["props"]["pageProps"]["listing"]["address"]["longitude"]
 
-            logging.info(f"Scraped latitude: {self.output['latitude']}")
-            logging.info(f"Scraped longitude: {self.output['longitude']}")
+            logging.debug(f"Scraped latitude: {self.output['latitude']}")
+            logging.debug(f"Scraped longitude: {self.output['longitude']}")
         except Exception as err:
             logging.info(f"Error scraping latitude and longitude: {err}")
 
         try:
-            self.output["district"] = data["props"]["pageProps"]["listing"]["address"]["districtName"]
+            self.output["district"] = data["props"]["pageProps"]["listing"][
+                "address"]["districtName"]
 
-            logging.info(f"Scraped district: {self.output['district']}")
+            logging.debug(f"Scraped district: {self.output['district']}")
         except Exception as err:
             logging.info(f"Error scraping district: {err}")
 
@@ -287,8 +299,9 @@ class OhMyHomeScraper(AbstractPropertyScraper):
             if not self.page_json:
                 raise Exception("No data found")
 
-            self.output["facilities"] = self.page_json["props"]["pageProps"]["listing"]["facilities"]
-            logging.info(f"Scraped facilities: {self.output['facilities']}")
+            self.output["facilities"] = self.page_json["props"]["pageProps"][
+                "listing"]["facilities"]
+            logging.debug(f"Scraped facilities: {self.output['facilities']}")
         except Exception as err:
             logging.warning(f"Error scraping facilities: {err}")
 
@@ -310,7 +323,7 @@ class OhMyHomeScraper(AbstractPropertyScraper):
         soup, pages = self.initial_fetch()
         if not soup:
             logging.info(
-                f"Error fetching initial page, exiting...")
+                "Error fetching initial page, exiting...")
             return
 
         self.scrape_links(soup, pages, debug)
@@ -344,9 +357,9 @@ class OhMyHomeScraper(AbstractPropertyScraper):
         # Scrape rental info for each property
         rental_infos = []
         logging.info(
-            "A total of " + str(min(self.properties_per_page,
-                                len(self.props))) + " properties will be scraped."
-        )
+            "A total of " +
+            str(min(self.properties_per_page, len(self.props))) +
+            " properties will be scraped.")
 
         for i, prop in enumerate(self.props):
             # only scrape self.properties_per_page per district
@@ -358,18 +371,19 @@ class OhMyHomeScraper(AbstractPropertyScraper):
                 rental_infos.append(rental_info)
 
             logging.info(
-                str(i + 1) + "/" + str(min(self.properties_per_page, len(self.props))) + " done!")
+                str(i + 1) + "/" +
+                str(min(self.properties_per_page, len(self.props))) + " done!")
 
         self.create_dataframe(rental_infos)
 
     def scrape_property_info(self, prop):
-        logging.info(f"Fetching property...")
+        logging.info("Fetching property...")
 
         # remove leading '/' from url
         url = self.header + prop[1:]
         prop_soup = self.fetch_html(url, False)
         if not prop_soup:
-            logging.info(f"Error fetching property, skipping...")
+            logging.info("Error fetching property, skipping...")
             time.sleep(10)
             return
 
@@ -396,7 +410,7 @@ class OhMyHomeScraper(AbstractPropertyScraper):
 
         if df.empty:
             # logging.info(f"No properties found for {self.DISTRICTS[district]}")
-            logging.info(f"No properties found.")
+            logging.info("No properties found.")
             return
 
         df = df[self.COLUMNS]
@@ -432,14 +446,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     from dotenv import load_dotenv
-
     load_dotenv()
 
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.INFO if not args.debug else logging.DEBUG,
         format="%(asctime)s : %(filename)s-%(lineno)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
+        datefmt="%H:%M:%S",)
 
     try:
         start = time.time()

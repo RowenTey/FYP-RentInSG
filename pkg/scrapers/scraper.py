@@ -43,7 +43,7 @@ class AbstractPropertyScraper(ABC):
         get_prop_info(soup: BeautifulSoup) -> Dict[str, Any]: Extracts the property information from the HTML content.
         scrape_rental_prices(district: str, debug: bool) -> None: Scrapes rental prices for a specific district.
         output_to_csv(df: pd.DataFrame) -> None: Outputs the scraped data to a CSV file.
-        initial_fetch() -> Tuple[BeautifulSoup, int]: Fetches the initial HTML content and determines the number of pages to scrape.
+        initial_fetch() -> Tuple[BeautifulSoup, int]: Fetches the initial HTML content and determines the number of pages to scrape. # noqa: E501
         logging.info_title() -> None: logging.infos the title of the scraper.
         run(debug: bool) -> None: Runs the scraper for all districts.
         to_snake_case(input_string: str) -> str: Converts a string to snake case.
@@ -103,7 +103,12 @@ class AbstractPropertyScraper(ABC):
         "facilities",
     ]
 
-    def __init__(self, header: str, key: str, query: str, use_proxies: bool = False):
+    def __init__(
+            self,
+            header: str,
+            key: str,
+            query: str,
+            use_proxies: bool = False):
         """
         Initializes an AbstractPropertyScraper object.
 
@@ -156,7 +161,6 @@ class AbstractPropertyScraper(ABC):
                 logging.info("=" * 75)
 
                 soup = BeautifulSoup(self.html_content, "html.parser")
-                print(soup)
 
                 if "captcha" in soup.text:
                     self.handle_retry("CAPTCHA", trial)
@@ -285,7 +289,8 @@ class AbstractPropertyScraper(ABC):
             # Check if the CSV file exists
             file_exists = os.path.isfile(output_path)
 
-            # Open the CSV file in append mode if it exists, otherwise in write mode
+            # Open the CSV file in append mode if it exists, otherwise in write
+            # mode
             with open(output_path, "a+" if file_exists else "w", newline="") as file:
                 # Write the header only if the file is newly created
                 df.to_csv(file, index=False, header=not file_exists)
@@ -319,7 +324,7 @@ class AbstractPropertyScraper(ABC):
 
         """
         logging.info(
-            f"\n\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n"
+            f"\n\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n"  # noqa: E501
         )
         logging.info(
             "Job initiated with query on rental properties in Singapore.")
@@ -411,7 +416,7 @@ class AbstractPropertyScraper(ABC):
         """
         try:
             res = requests.get(
-                'https://api.proxynova.com/proxy/find?url=https%3A%2F%2Fwww.proxynova.com%2Fproxy-server-list%2Felite-proxies%2F')
+                'https://api.proxynova.com/proxy/find?url=https%3A%2F%2Fwww.proxynova.com%2Fproxy-server-list%2Felite-proxies%2F')  # noqa: E501
             data = res.json()
             return data['proxies']
         except Exception as e:

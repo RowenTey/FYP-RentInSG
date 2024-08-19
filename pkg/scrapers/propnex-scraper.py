@@ -30,7 +30,7 @@ class PropnexScraper(AbstractPropertyScraper):
         self.pages_to_fetch = 15
         self.properties_per_page = 200
         self.pagination_element = "div.listingPagination"
-        self.rental_prices_dir = f"./pkg/rental_prices/propnex/"
+        self.rental_prices_dir = "./pkg/rental_prices/propnex/"
 
         self.soup = None
         self.output = {}
@@ -55,11 +55,21 @@ class PropnexScraper(AbstractPropertyScraper):
         try:
             for trial in range(1, 21):
                 self.monitor_cpu()
-                scraper = self.session
 
+                # Set up retry logic
+                wait = WebDriverWait(self.driver, 10)
                 logging.info("Loading " + url)
                 time.sleep(random.randint(1, 5))
-                self.html_content = scraper.get(url).text
+                wait = WebDriverWait(self.driver, 20)
+                self.driver.get(url)
+
+                # Wait for page to load
+                wait.until(EC.presence_of_element_located(
+                    (By.TAG_NAME, 'body')
+                ))
+
+                # Get the page source
+                self.html_content = self.driver.page_source
                 logging.info("=" * 75)
 
                 soup = BeautifulSoup(self.html_content, "html.parser")
@@ -264,7 +274,12 @@ class PropnexScraper(AbstractPropertyScraper):
                 continue
 
             soup = self.fetch_html(
-                self.header + self.key + self.query + "&page_num=" + str(page), True)
+                self.header +
+                self.key +
+                self.query +
+                "&page_num=" +
+                str(page),
+                True)
             if not soup:
                 logging.warning(f"Error fetching page {page}, skipping...")
                 continue
@@ -278,9 +293,9 @@ class PropnexScraper(AbstractPropertyScraper):
         # Scrape rental info for each property
         rental_infos = []
         logging.info(
-            "A total of " + str(min(self.properties_per_page,
-                                len(self.props))) + " properties will be scraped."
-        )
+            "A total of " +
+            str(min(self.properties_per_page, len(self.props))) +
+            " properties will be scraped.")
 
         for i, prop in enumerate(self.props):
             # only scrape self.properties_per_page per district
@@ -292,7 +307,8 @@ class PropnexScraper(AbstractPropertyScraper):
                 rental_infos.append(rental_info)
 
             logging.info(
-                str(i + 1) + "/" + str(min(self.properties_per_page, len(self.props))) + " done!")
+                str(i + 1) + "/" +
+                str(min(self.properties_per_page, len(self.props))) + " done!")
 
         self.create_dataframe(rental_infos, district)
 
@@ -356,8 +372,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s : %(filename)s-%(lineno)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
+        datefmt="%H:%M:%S",)
 
     try:
         start = time.time()

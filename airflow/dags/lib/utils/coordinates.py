@@ -48,8 +48,8 @@ def find_nearest(
         distance_to_target_landmark: str,
         is_inference: bool = False) -> pd.DataFrame:
     """
-    A function that finds the nearest locations from the 2nd table to the 1st address based on geodesic distance calculations.
-    Taken from https://medium.com/@michael.wy.ong/web-scrape-geospatial-data-analyse-singapores-property-price-part-i-276caba320b
+    A function that finds the nearest locations from the 2nd table to the 1st address based on geodesic distance calculations. # noqa: E501
+    Taken from https://medium.com/@michael.wy.ong/web-scrape-geospatial-data-analyse-singapores-property-price-part-i-276caba320b # noqa: E501
 
     Parameters:
         df1: pd.DataFrame - The first DataFrame containing the addresses.
@@ -88,8 +88,10 @@ def find_nearest(
                 landmark_info[1] = eachloc
                 landmark_info[2] = round(distance, 3)
 
-        df1.loc[df1["building_name"] == building_name, target_landmark] = landmark_info[0]
-        df1.loc[df1["building_name"] == building_name, distance_to_target_landmark] = landmark_info[2]
+        df1.loc[df1["building_name"] == building_name,
+                target_landmark] = landmark_info[0]
+        df1.loc[df1["building_name"] == building_name,
+                distance_to_target_landmark] = landmark_info[2]
 
     return df1
 
