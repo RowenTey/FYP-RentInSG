@@ -82,6 +82,7 @@ class AbstractPropertyScraper(ABC):
         "D27": "Sembawang / Yishun",
         "D28": "Seletar / Yio Chu Kang",
     }
+    
     COLUMNS = [
         "property_name",
         "listing_id",
