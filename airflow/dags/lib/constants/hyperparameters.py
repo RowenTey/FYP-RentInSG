@@ -35,13 +35,13 @@ HGBR = {
 }
 
 XGBOOST = {
-    "n_estimators": [100, 200, 300, 400, 500],               
-    "max_depth": [3, 4, 5], 
+    "n_estimators": [100, 200, 300, 400, 500],
+    "max_depth": [3, 4, 5],
     "subsample": [0.8, 0.9, 1.0],
-    "colsample_bytree": [0.8, 0.9, 1.0],  
+    "colsample_bytree": [0.8, 0.9, 1.0],
     "learning_rate": [0.01, 0.1],
     "min_child_weight": [1, 2, 3],
-    "gamma": [0, 0.1, 0.2],  
+    "gamma": [0, 0.1, 0.2],
 }
 
 LGBM_PARAMS = {

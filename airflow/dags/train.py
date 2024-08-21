@@ -101,10 +101,10 @@ def clean_data(upstream_task: str, **kwargs):
     df["tenure"] = df["tenure"].fillna(df["tenure"].mode()[0])
     df["property_type"] = df["property_type"].replace("Cluster HouseWhole Unit", "Cluster House")
     df["property_type"] = df["property_type"].fillna(df['property_type'].mode()[0])
-    
+
     valid_built_years = df[df["built_year"] != 9999]["built_year"]
     df["built_year"] = df["built_year"].replace(9999, valid_built_years.median())
-    
+
     df["distance_to_mrt_in_m"] = df["distance_to_mrt_in_m"].replace(np.inf, df["distance_to_mrt_in_m"].median())
     df["has_pool"] = df["has_pool"].replace(pd.NA, False)
     df["has_gym"] = df["has_gym"].replace(pd.NA, False)
@@ -233,7 +233,13 @@ def prepare_data(upstream_task: str, **kwargs):
     return (train_df, val_df, test_df)
 
 
-def train_and_evaluate_model(experiment_id: str, model_class: any, model_name: str, mlflow_tracking_uri: str, train_data: DataFrame, val_data: DataFrame):
+def train_and_evaluate_model(
+        experiment_id: str,
+        model_class: any,
+        model_name: str,
+        mlflow_tracking_uri: str,
+        train_data: DataFrame,
+        val_data: DataFrame):
     import mlflow
     import numpy as np
     from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score
@@ -335,15 +341,16 @@ def train_models(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
     best_rmse = float('inf')
 
     for model_class, model_name in models:
-        mae, rmse, evs, run_id = train_and_evaluate_model(experiment_id, model_class, model_name, mlflow_tracking_uri, train_data, val_data)
+        mae, rmse, evs, run_id = train_and_evaluate_model(
+            experiment_id, model_class, model_name, mlflow_tracking_uri, train_data, val_data)
         print(f"Model: {model_name}, MAE: {mae}, RMSE: {rmse}, EVS: {evs}")
         if rmse < best_rmse:
             best_rmse = rmse
             best_evs = evs
             best_run = run_id
             best_model = model_name
-    
-    run_summary =  (
+
+    run_summary = (
         "Best regression model for property listing price prediction is\n"
         f"{best_model} with accuracy of {best_evs}."
     ),
@@ -374,21 +381,21 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
     from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score
     from sklearn.preprocessing import StandardScaler, OneHotEncoder
     from sklearn.compose import ColumnTransformer
-    
+
     ti = kwargs['ti']
     data = ti.xcom_pull(task_ids=upstream_task[0])
     experiment_id = ti.xcom_pull(task_ids=upstream_task[1])
     model_name = ti.xcom_pull(task_ids=upstream_task[2])[0]
 
     train_data, val_data, test_data = data
-    
+
     X_train = train_data.drop('price', axis=1)
     y_train = train_data['price']
     X_val = val_data.drop('price', axis=1)
     y_val = val_data['price']
     X_test = test_data.drop('price', axis=1)
     y_test = test_data['price']
-    
+
     models = {
         "linear_regression": LinearRegression,
         "lasso_regression": Lasso,
@@ -421,56 +428,56 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
         ],
         remainder="passthrough"
     )
-    
+
     X_train = column_transformer.fit_transform(X_train)
     X_val = column_transformer.transform(X_val)
-    X_test = column_transformer.transform(X_test)    
-    
+    X_test = column_transformer.transform(X_test)
+
     run_id = None
     run_summary = ""
     params_grid = HYPERPARAMETERS[model_name]
     best_model = models[model_name]
-    
+
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     with mlflow.start_run(
         experiment_id=experiment_id,
         run_name="hyperparameter_tuning"
     ) as run:
         model = best_model(random_state=42) if hasattr(best_model, "random_state") else best_model()
-                    
+
         grid_search = GridSearchCV(model, params_grid, cv=5, scoring='r2', verbose=3, n_jobs=5)
         grid_search.fit(X_train, y_train)
-        
+
         y_pred = grid_search.predict(X_val)
         signature = mlflow.models.infer_signature(X_val, y_pred)
-        
+
         mae = mean_absolute_error(y_val, y_pred).round(2)
         rmse = sqrt(mean_squared_error(y_val, y_pred)).round(2)
         evs = explained_variance_score(y_val, y_pred).round(2)
-        
+
         # Log the results
         mlflow.log_params(grid_search.best_params_)
         mlflow.log_metric('r2', grid_search.best_score_)
-        
+
         mlflow.log_metric('val_mae', mae)
         mlflow.log_metric('val_rmse', rmse)
         mlflow.log_metric('val_explained_variance_score', evs)
-        
+
         y_pred = grid_search.predict(X_test)
-        
+
         mae = mean_absolute_error(y_test, y_pred).round(2)
         rmse = sqrt(mean_squared_error(y_test, y_pred)).round(2)
         evs = explained_variance_score(y_test, y_pred).round(2)
-        
+
         mlflow.log_metric('test_mae', mae)
         mlflow.log_metric('test_rmse', rmse)
         mlflow.log_metric('test_explained_variance_score', evs)
-        
+
         run_summary = f"Model {model_name} was tuned to an accuracy of {evs}."
 
         mlflow.sklearn.log_model(grid_search.best_estimator_, artifact_path=model_name, signature=signature)
         run_id = run.info.run_id
-        
+
     return (run_id, run_summary)
 
 
