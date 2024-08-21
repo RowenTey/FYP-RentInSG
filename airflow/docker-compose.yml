@@ -50,7 +50,11 @@ x-airflow-common:
   # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
   # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
   # image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.9.2}
-  build: .
+  build: 
+    context: .
+    dockerfile: Dockerfile.airflow
+    args:
+      AIRFLOW_UID: ${AIRFLOW_UID:-50000}
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -77,6 +81,7 @@ x-airflow-common:
     # The following line can be used to set a custom config file, stored in the local config folder
     # If you want to use it, outcomment it and replace airflow.cfg with the name of your config file
     # AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
+    MLFLOW_TRACKING_URI: http://mlflow-server:5000
   volumes:
     - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
@@ -101,8 +106,9 @@ services:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
-    # volumes:
-    #   - postgres-db-volume:/var/lib/postgresql/data
+    volumes:
+      # - postgres-db-volume:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
@@ -136,6 +142,16 @@ services:
           echo "Created volume 'scraper_data'"
         fi
         
+        if ! docker volume inspect 99co_data >/dev/null 2>&1; then
+          docker volume create --name 99co_data
+          echo "Created volume '99co_data'"
+        fi
+        
+        if ! docker volume inspect propnex_data >/dev/null 2>&1; then
+          docker volume create --name propnex_data
+          echo "Created volume 'propnex_data'"
+        fi
+        
         if ! airflow connections get 'aws_conn' > /dev/null 2>&1; then
             airflow connections add 'aws_conn' \
                 --conn-type 'aws' \
@@ -149,6 +165,14 @@ services:
                 --conn-password '${MOTHERDUCKDB_TOKEN}' \
                 --conn-schema 'fyp_rent_in_sg'
             echo "Created DuckDB connection with Motherduck service token"
+        fi
+        
+        if ! airflow connections get 'mlflow_conn' > /dev/null 2>&1; then
+            airflow connections add 'mlflow_conn' \
+                --conn-type 'http' \
+                --conn-host 'mlflow-server' \
+                --conn-port '5000'
+            echo "Created MLFlow connection"
         fi
         
         airflow webserver
@@ -330,6 +354,28 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+        
+  mlflow-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
+    ports:
+        - "8082:5000"
+    environment:
+        # - MLFLOW_S3_ENDPOINT_URL=s3://fyp-2024-bucket/mlflow/
+        - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-AKIA3FLD5FDBCSAAHBIQ}
+        - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-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}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:5000"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    command: >
+      mlflow server --backend-store-uri postgresql+psycopg2://airflow:airflow@postgres/mlflow --default-artifact-root s3://fyp-2024-bucket/mlflow/ --host 0.0.0.0
 
 # volumes:
 #   postgres-db-volume:

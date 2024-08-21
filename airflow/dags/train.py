@@ -162,16 +162,21 @@ def perform_eda(upstream_task: list[str], **kwargs):
     mlflow.set_tracking_uri("http://mlflow-server:5000")
     with mlflow.start_run(
             experiment_id=experiment_id,
-            run_name=f"EDA_{datetime.today().strftime('%Y-%m-%d_%H:%M')}"):
+            run_name="EDA"):
         # Log descriptive statistics
         mlflow.log_param("numerical_columns", numerical_columns)
         mlflow.log_param("categorical_columns", categorical_columns)
         mlflow.log_metric("num_rows", len(df))
         mlflow.log_metric("num_columns", len(df.columns))
+        mlflow.log_metric("num_unique_rental_price", df["price"].nunique())
+        mlflow.log_metric("min_rental_price", df["price"].min())
+        mlflow.log_metric("max_rental_price", df["price"].max())
+        mlflow.log_metric("mean_rental_price", df["price"].mean())
+        mlflow.log_metric("median_rental_price", df["price"].median())
+        mlflow.log_metric("std_rental_price", df["price"].std())
 
         # Log correlation with price
         correlations = df[numerical_columns].corr()["price"].sort_values(ascending=False)
-        print(correlations)
         mlflow.log_param("price_correlations", correlations.to_dict())
 
 
@@ -261,8 +266,7 @@ def train_and_evaluate_model(experiment_id: str, model_class: any, model_name, t
     run_id = None
     with mlflow.start_run(
         experiment_id=experiment_id,
-        # run_name=f"{model_name}_{datetime.today().strftime('%Y-%m-%d_%H:%M')}") as run:
-        run_name=f"{model_name}"
+        run_name=f"{model_name}",
     ) as run:
         pipeline.fit(X_train, y_train)
         y_pred = pipeline.predict(X_val)
