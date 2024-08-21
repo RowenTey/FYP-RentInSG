@@ -8,6 +8,7 @@ from mlflow_provider.operators.registry import (
     TransitionModelVersionStageOperator,
 )
 from datetime import datetime
+from pandas import DataFrame
 import os
 
 DATASET_URI = "duckdb://fyp_rent_in_sg/property_listing/"
@@ -15,6 +16,7 @@ ARTIFACT_BUCKET = os.environ["S3_BUCKET"]
 TABLE_NAME = "property_listing"
 DUCKDB_CONN_ID = "duckdb_conn"
 MLFLOW_CONN_ID = "mlflow_conn"
+MLFLOW_TRACKING_URI = "http://mlflow-server:5000"
 EXPERIMENT_NAME = "rent_in_sg"
 REGISTERED_MODEL_NAME = "rent_in_sg_reg_model"
 
@@ -39,6 +41,7 @@ def check_and_trigger_retraining(duckdb_conn_id: str, dataset_uri: str, **contex
     from lib.utils.motherduckdb import MotherDuckDBConnector
     from duckdb_provider.hooks.duckdb_hook import DuckDBHook
     from duckdb import DuckDBPyConnection
+    from airflow.models import Variable
 
     duckdb_hook = DuckDBHook.get_hook(duckdb_conn_id)
     conn: DuckDBPyConnection = duckdb_hook.get_conn()
@@ -55,14 +58,17 @@ def check_and_trigger_retraining(duckdb_conn_id: str, dataset_uri: str, **contex
     db.close()
 
     ti = context['ti']
-    previous_size = ti.xcom_pull(task_ids='check_and_trigger_retraining', key='previous_size', default=1)
+    previous_size = int(Variable.get("previous_property_listing_dataset_size", default_var=1))
+    # previous_size = ti.xcom_pull(task_ids='check_and_trigger_retraining', key='previous_size', default=1)
     print(f"Current size: {current_size}; Previous size: {previous_size}")
 
-    if current_size - previous_size <= 5000:
-        ti.xcom_push(key='previous_size', value=current_size)
-        return "retraining_not_triggered"
+    # if current_size - previous_size <= 5000:
+    #     Variable.set("previous_property_listing_dataset_size", current_size)
+    #     # ti.xcom_push(task_ids='check_and_trigger_retraining', key='previous_size', value=current_size)
+    #     return "retraining_not_triggered"
 
-    ti.xcom_push(key='previous_size', value=current_size)
+    # Variable.set("previous_property_listing_dataset_size", current_size)
+    # ti.xcom_push(task_ids='check_and_trigger_retraining', key='previous_size', value=current_size)
     return "retraining_triggered"
 
 
@@ -95,7 +101,10 @@ def clean_data(upstream_task: str, **kwargs):
     df["tenure"] = df["tenure"].fillna(df["tenure"].mode()[0])
     df["property_type"] = df["property_type"].replace("Cluster HouseWhole Unit", "Cluster House")
     df["property_type"] = df["property_type"].fillna(df['property_type'].mode()[0])
-    df["built_year"] = df["built_year"].replace(9999, df["built_year"].median())
+    
+    valid_built_years = df[df["built_year"] != 9999]["built_year"]
+    df["built_year"] = df["built_year"].replace(9999, valid_built_years.median())
+    
     df["distance_to_mrt_in_m"] = df["distance_to_mrt_in_m"].replace(np.inf, df["distance_to_mrt_in_m"].median())
     df["has_pool"] = df["has_pool"].replace(pd.NA, False)
     df["has_gym"] = df["has_gym"].replace(pd.NA, False)
@@ -139,7 +148,7 @@ def create_or_get_experiment(experiment_name: str, artifact_bucket: str, mlflow_
     return new_experiment_information["experiment_id"]
 
 
-def perform_eda(upstream_task: list[str], **kwargs):
+def perform_eda(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
     import mlflow
 
     ti = kwargs['ti']
@@ -159,7 +168,8 @@ def perform_eda(upstream_task: list[str], **kwargs):
         "distance_to_mall_in_m"]
     categorical_columns = ["property_type", "furnishing", "floor_level", "district_id", "tenure", "facing"]
 
-    mlflow.set_tracking_uri("http://mlflow-server:5000")
+    # mlflow.set_tracking_uri("http://mlflow-server:5000")
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
     with mlflow.start_run(
             experiment_id=experiment_id,
             run_name="EDA"):
@@ -223,7 +233,7 @@ def prepare_data(upstream_task: str, **kwargs):
     return (train_df, val_df, test_df)
 
 
-def train_and_evaluate_model(experiment_id: str, model_class: any, model_name, train_data, val_data):
+def train_and_evaluate_model(experiment_id: str, model_class: any, model_name: str, mlflow_tracking_uri: str, train_data: DataFrame, val_data: DataFrame):
     import mlflow
     import numpy as np
     from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score
@@ -261,7 +271,7 @@ def train_and_evaluate_model(experiment_id: str, model_class: any, model_name, t
         ('regressor', model_class)
     ])
 
-    mlflow.set_tracking_uri("http://mlflow-server:5000")
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
     print(f"Training model: {model_name}")
     run_id = None
     with mlflow.start_run(
@@ -286,7 +296,7 @@ def train_and_evaluate_model(experiment_id: str, model_class: any, model_name, t
     return (mae, rmse, evs, run_id)
 
 
-def train_models(upstream_task: list[str], **kwargs):
+def train_models(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
     from sklearn.ensemble import (
         RandomForestRegressor,
         AdaBoostRegressor,
@@ -300,6 +310,7 @@ def train_models(upstream_task: list[str], **kwargs):
     )
     from xgboost import XGBRegressor
     from catboost import CatBoostRegressor
+    from lightgbm import LGBMRegressor
 
     ti = kwargs['ti']
     data = ti.xcom_pull(task_ids=upstream_task[0])
@@ -317,20 +328,150 @@ def train_models(upstream_task: list[str], **kwargs):
         (HistGradientBoostingRegressor(), "hist_gradient_boosting"),
         (XGBRegressor(), "xgboost"),
         (CatBoostRegressor(), "catboost"),
+        (LGBMRegressor(), "lightgbm"),
     ]
 
-    best_model = best_run = None
+    best_model = best_evs = best_run = None
     best_rmse = float('inf')
 
     for model_class, model_name in models:
-        mae, rmse, evs, run_id = train_and_evaluate_model(experiment_id, model_class, model_name, train_data, val_data)
+        mae, rmse, evs, run_id = train_and_evaluate_model(experiment_id, model_class, model_name, mlflow_tracking_uri, train_data, val_data)
         print(f"Model: {model_name}, MAE: {mae}, RMSE: {rmse}, EVS: {evs}")
         if rmse < best_rmse:
             best_rmse = rmse
+            best_evs = evs
             best_run = run_id
             best_model = model_name
+    
+    run_summary =  (
+        "Best regression model for property listing price prediction is\n"
+        f"{best_model} with accuracy of {best_evs}."
+    ),
 
-    return (best_model, best_run)
+    return (best_model, best_run, run_summary)
+
+
+def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
+    import mlflow
+    from numpy import sqrt
+    from lib.constants.hyperparameters import HYPERPARAMETERS
+    from sklearn.model_selection import GridSearchCV
+    from sklearn.metrics import mean_squared_error
+    from sklearn.ensemble import (
+        RandomForestRegressor,
+        AdaBoostRegressor,
+        HistGradientBoostingRegressor
+    )
+    from sklearn.tree import DecisionTreeRegressor
+    from sklearn.linear_model import (
+        LinearRegression,
+        Lasso,
+        Ridge
+    )
+    from xgboost import XGBRegressor
+    from catboost import CatBoostRegressor
+    from lightgbm import LGBMRegressor
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score
+    from sklearn.preprocessing import StandardScaler, OneHotEncoder
+    from sklearn.compose import ColumnTransformer
+    
+    ti = kwargs['ti']
+    data = ti.xcom_pull(task_ids=upstream_task[0])
+    experiment_id = ti.xcom_pull(task_ids=upstream_task[1])
+    model_name = ti.xcom_pull(task_ids=upstream_task[2])[0]
+
+    train_data, val_data, test_data = data
+    
+    X_train = train_data.drop('price', axis=1)
+    y_train = train_data['price']
+    X_val = val_data.drop('price', axis=1)
+    y_val = val_data['price']
+    X_test = test_data.drop('price', axis=1)
+    y_test = test_data['price']
+    
+    models = {
+        "linear_regression": LinearRegression,
+        "lasso_regression": Lasso,
+        "ridge_regression": Ridge,
+        "decision_tree": DecisionTreeRegressor,
+        "random_forest": RandomForestRegressor,
+        "ada_boost": AdaBoostRegressor,
+        "hist_gradient_boosting": HistGradientBoostingRegressor,
+        "xgboost": XGBRegressor,
+        "catboost": CatBoostRegressor,
+        "lightgbm": LGBMRegressor,
+    }
+
+    numerical_columns = [
+        "bedroom",
+        "bathroom",
+        "dimensions",
+        "built_year",
+        "distance_to_mrt_in_m",
+        "distance_to_hawker_in_m",
+        "distance_to_supermarket_in_m",
+        "distance_to_sch_in_m",
+        "distance_to_mall_in_m"]
+    categorical_columns = ["property_type", "furnishing", "floor_level", "district_id", "tenure", "facing"]
+
+    column_transformer = ColumnTransformer(
+        transformers=[
+            ("scaler", StandardScaler(), [col for col in numerical_columns if col != "price"]),
+            ("encoder", OneHotEncoder(drop=None, sparse_output=False), categorical_columns)
+        ],
+        remainder="passthrough"
+    )
+    
+    X_train = column_transformer.fit_transform(X_train)
+    X_val = column_transformer.transform(X_val)
+    X_test = column_transformer.transform(X_test)    
+    
+    run_id = None
+    run_summary = ""
+    params_grid = HYPERPARAMETERS[model_name]
+    best_model = models[model_name]
+    
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
+    with mlflow.start_run(
+        experiment_id=experiment_id,
+        run_name="hyperparameter_tuning"
+    ) as run:
+        model = best_model(random_state=42) if hasattr(best_model, "random_state") else best_model()
+                    
+        grid_search = GridSearchCV(model, params_grid, cv=5, scoring='r2', verbose=3, n_jobs=5)
+        grid_search.fit(X_train, y_train)
+        
+        y_pred = grid_search.predict(X_val)
+        signature = mlflow.models.infer_signature(X_val, y_pred)
+        
+        mae = mean_absolute_error(y_val, y_pred).round(2)
+        rmse = sqrt(mean_squared_error(y_val, y_pred)).round(2)
+        evs = explained_variance_score(y_val, y_pred).round(2)
+        
+        # Log the results
+        mlflow.log_params(grid_search.best_params_)
+        mlflow.log_metric('r2', grid_search.best_score_)
+        
+        mlflow.log_metric('val_mae', mae)
+        mlflow.log_metric('val_rmse', rmse)
+        mlflow.log_metric('val_explained_variance_score', evs)
+        
+        y_pred = grid_search.predict(X_test)
+        
+        mae = mean_absolute_error(y_test, y_pred).round(2)
+        rmse = sqrt(mean_squared_error(y_test, y_pred)).round(2)
+        evs = explained_variance_score(y_test, y_pred).round(2)
+        
+        mlflow.log_metric('test_mae', mae)
+        mlflow.log_metric('test_rmse', rmse)
+        mlflow.log_metric('test_explained_variance_score', evs)
+        
+        run_summary = f"Model {model_name} was tuned to an accuracy of {evs}."
+
+        mlflow.sklearn.log_model(grid_search.best_estimator_, artifact_path=model_name, signature=signature)
+        run_id = run.info.run_id
+        
+    return (run_id, run_summary)
 
 
 def check_if_model_already_registered(
@@ -403,7 +544,8 @@ perform_eda_task = PythonOperator(
     task_id='perform_eda',
     python_callable=perform_eda,
     op_kwargs={
-        'upstream_task': [clean_data_task.task_id, create_experiment_task.task_id]
+        'upstream_task': [clean_data_task.task_id, create_experiment_task.task_id],
+        'mlflow_tracking_uri': MLFLOW_TRACKING_URI
     },
     dag=dag,
 )
@@ -421,7 +563,18 @@ train_models_task = PythonOperator(
     task_id='train_models',
     python_callable=train_models,
     op_kwargs={
-        'upstream_task': [prepare_data_task.task_id, create_experiment_task.task_id]
+        'upstream_task': [prepare_data_task.task_id, create_experiment_task.task_id],
+        'mlflow_tracking_uri': MLFLOW_TRACKING_URI
+    },
+    dag=dag,
+)
+
+tune_model_task = PythonOperator(
+    task_id='tune_model',
+    python_callable=tune_model,
+    op_kwargs={
+        'upstream_task': [prepare_data_task.task_id, create_experiment_task.task_id, train_models_task.task_id],
+        'mlflow_tracking_uri': MLFLOW_TRACKING_URI
     },
     dag=dag,
 )
@@ -459,12 +612,12 @@ create_model_version_task = CreateModelVersionOperator(
     source="s3://"
     + ARTIFACT_BUCKET
     + "/mlflow/"
-    + "{{ ti.xcom_pull(task_ids='train_models')[0] }}",
+    + f"/{EXPERIMENT_NAME}/"
+    + "{{ ti.xcom_pull(task_ids='train_models')[1] }}",
+    # + "/artifacts/"
+    # + "{{ ti.xcom_pull(task_ids='train_models')[0] }}"
     run_id="{{ ti.xcom_pull(task_ids='train_models')[1] }}",
-    description=(
-        "Best regression model for property listing price prediction is "
-        "{{ ti.xcom_pull(task_ids='train_models')[0] }}."
-    ),
+    description="{{ ti.xcom_pull(task_ids='train_models')[2] }}",
     trigger_rule="none_failed",
 )
 
@@ -493,7 +646,9 @@ create_experiment_task >> train_models_task
 
 prepare_data_task >> train_models_task
 
-train_models_task >> check_if_model_already_registered_task
+train_models_task >> tune_model_task
+
+tune_model_task >> check_if_model_already_registered_task
 
 check_if_model_already_registered_task >> register_model_task
 
