@@ -1,0 +1,12 @@
+FROM apache/airflow:2.9.2-python3.10
+
+COPY requirements_v4.txt /opt/airflow/requirements.txt
+RUN pip install --no-cache-dir -r /opt/airflow/requirements.txt
+
+USER root
+
+# Install git for mlflow
+RUN apt-get update -y && apt-get install -y gcc && apt-get install -y git
+
+ARG AIRFLOW_UID=50000
+RUN usermod -u ${AIRFLOW_UID} airflow
