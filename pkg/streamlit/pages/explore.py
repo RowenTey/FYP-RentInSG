@@ -5,7 +5,7 @@ import streamlit as st
 from pygwalker.api.streamlit import StreamlitRenderer
 
 st.set_page_config(
-    page_title="Rental Price Prediction",
+    "Singapore Rental Price Analysis | Explore",
     page_icon="🏠",
     layout="wide",
 )
@@ -20,7 +20,9 @@ def get_pyg_renderer() -> "StreamlitRenderer":
     return StreamlitRenderer(
         df,
         spec="static/gw_config.json",
-        spec_io_mode="rw")
+        spec_io_mode="rw",
+        kernel_computation=True
+    )
 
 
 with st.spinner("Loading data..."):

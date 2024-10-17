@@ -11,59 +11,96 @@ from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from components.constants import *
 from components.find_closest import find_nearest_single
-from components.motherduckdb_connector import connect_to_motherduckdb
 
 st.set_page_config(
-    "Singapore Rental Price Dashboard",
+    "Singapore Rental Price Analysis | Home",
     page_icon="🏠",
+    layout="wide",
 )
 
-st.title("Singapore Rental Price Dashboard")
-st.text("This dashboard predicts the rental price of a property in Singapore 📈")
+st.title("Singapore Rental Price Prediction Home")
+st.text("This page predicts the rental price of a property in Singapore 📈")
 st.info(
     """
     Fill in the form below with specific parameteres to predict monthly rental price of a property in Singapore.
     __(\\* indicates required fields)__
-    __(\\* indicates required fields)__
 """
 )
 
-# Load column transformer from pickle file to encode categorical columns
-# and scale numerical columns
-with open("static/column_transformer.pkl", "rb") as file:
-    column_transformer = pickle.load(file)
+if "model" not in st.session_state:
+    st.session_state["model"] = None
 
-# Load catboost model from pickle file
-with open("static/catboost.pkl", "rb") as file:
-    model = pickle.load(file)
+if "column_transformer" not in st.session_state:
+    st.session_state["column_transformer"] = None
 
-geocoder = Nominatim(user_agent="sg_rental_price_dashboard")
+
+MLFLOW_TRACKING_URI = "https://ks-8000.leejacksonz.com/"
+REGISTERED_MODEL_NAME = "rent_in_sg_reg_model"
+listings_df = pd.DataFrame()
 
 
 @st.cache_data
-def get_feature_importance():
-    return pd.read_csv("static/feature_importance.csv")
+def fetch_latest_version() -> dict:
+    import mlflow
+    client = mlflow.tracking.MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
+    # -1 because models are sorted by version in descending order
+    latest_version = dict(client.get_latest_versions(REGISTERED_MODEL_NAME)[-1])
+    print(latest_version)
+    return latest_version
 
 
-def plot_feature_importances():
-    """
-    Plots a horizontal bar chart of feature importances using Plotly and Streamlit.
-    """
-    # Create the Plotly figure
-    df = get_feature_importance()
-    title = "Feature Importances"
-    fig = px.bar(df, x="importance", y="feature", orientation="h", title=title)
+@st.cache_resource
+def get_model(model_name, source):
+    import mlflow
+    if model_name == 'xgboost':
+        return mlflow.xgboost.load_model(source)
+    elif model_name == 'lightgbm':
+        return mlflow.lightgbm.load_model(source)
+    elif model_name == 'catboost':
+        return mlflow.catboost.load_model(source)
+    else:
+        return mlflow.sklearn.load_model(source)
 
-    # Update the layout for better visualization
-    fig.update_layout(
-        xaxis_title="Importance",
-        yaxis_title="Feature",
-        yaxis=dict(categoryorder="total ascending"),
-        title={"x": 0.5, "xanchor": "center", "yanchor": "top"},
-    )
 
-    # Display the Plotly figure in Streamlit
-    st.plotly_chart(fig)
+@st.cache_resource
+def get_column_transformer(source):
+    import mlflow
+    column_transformer = None
+    dst_path = mlflow.artifacts.download_artifacts(source)
+    with open(dst_path, "rb") as file:
+        column_transformer = pickle.load(file)
+    return column_transformer
+
+
+@st.cache_resource
+def init_motherduckdb_conn():
+    from components.motherduckdb_connector import connect_to_motherduckdb
+    return connect_to_motherduckdb()
+
+
+@st.cache_data
+def fetch_info(_db, query, target_cols=None):
+    queried_df = _db.query_df(query)
+
+    if target_cols:
+        return queried_df[target_cols]
+
+    return queried_df
+
+
+@st.cache_data
+def load_local_data(file_path):
+    return pd.read_csv(file_path)
+
+
+@st.fragment(run_every="2h")
+def fetch_listings_df():
+    if "db" not in st.session_state:
+        return
+
+    global listings_df
+    db = st.session_state["db"]
+    listings_df = db.query_df("SELECT * FROM property_listing")
 
 
 def update_feature_names(
@@ -73,42 +110,11 @@ def update_feature_names(
     feature_map = {tf: map_transformed_feature_to_original(
         tf, feature_names) for tf in explanation.feature_names}
 
-    import json
-    print(json.dumps(feature_map, indent=3))
-
     # Update feature names in the explanation object
     explanation.feature_names = [feature_map.get(
         f, f) for f in explanation.feature_names]
 
     return explanation
-
-
-def plot_shap_summary(explanation: shap.Explanation):
-    st.subheader("SHAP Summary Plot")
-
-    # Create a new figure
-    fig, ax = plt.subplots(figsize=(10, 8))
-
-    # Plot the SHAP summary plot
-    shap.summary_plot(explanation.values, explanation.data,
-                      feature_names=explanation.feature_names,
-                      plot_type="bar", show=False)
-
-    plt.tight_layout()
-    st.pyplot(fig, bbox_inches='tight')
-
-
-def plot_shap_waterfall(explanation: shap.Explanation):
-    st.subheader("SHAP Waterfall Plot")
-
-    # Create a new figure
-    fig, ax = plt.subplots(figsize=(10, 8))
-
-    # Plot the SHAP waterfall plot
-    shap.plots.waterfall(explanation[0], show=False)
-
-    plt.tight_layout()
-    st.pyplot(fig, bbox_inches='tight')
 
 
 def transform_form_data(form_data):
@@ -124,17 +130,6 @@ def transform_form_data(form_data):
             form_data[key] = DISTRICTS[form_data[key]]
 
     return form_data
-
-
-@st.cache_data
-def fetch_info(_db, query, target_cols):
-    df2 = _db.query_df(query)
-    return df2[target_cols]
-
-
-@st.cache_data
-def load_local_data(file_path):
-    return pd.read_csv(file_path)
 
 
 def fetch_listings_within_radius(lat, lon, radius_km, listings_df):
@@ -179,7 +174,7 @@ def plot_listings_on_map(listings, user_location):
     st.plotly_chart(fig)
 
 
-def add_distance_info(validated_form_data, fill_default=False) -> dict:
+def add_distance_info(validated_form_data: dict, fill_default: bool = False) -> dict:
     import json
 
     enrichment = {
@@ -218,14 +213,15 @@ def add_distance_info(validated_form_data, fill_default=False) -> dict:
         validated_form_data["longitude"] = coords[
             validated_form_data["district_id"]][1]
 
-        st.write("Added default distance values...")
         st.write(
-            f"({validated_form_data['latitude']}, {validated_form_data['longitude']})")
+            f"Added default distance values: ({validated_form_data['latitude']}, {validated_form_data['longitude']})")
 
         return validated_form_data
 
-    db = connect_to_motherduckdb()
+    if "db" not in st.session_state:
+        return validated_form_data
 
+    db = st.session_state["db"]
     location = geocoder.geocode(f"{validated_form_data['address']}, Singapore")
     validated_form_data["latitude"] = location.latitude
     validated_form_data["longitude"] = location.longitude
@@ -280,12 +276,10 @@ def generate_shap_explanation(shap_values, feature_names, column_transformer):
 
 def map_transformed_feature_to_original(
         transformed_feature, original_features):
-    # This function attempts to map transformed feature names back to original
-    # features
     for original in original_features:
         if original in transformed_feature:
             return original
-    return transformed_feature  # Return as-is if no mapping found
+    return transformed_feature
 
 
 def process_form_data(model, column_transformer, form_data) -> float:
@@ -331,7 +325,6 @@ def process_form_data(model, column_transformer, form_data) -> float:
                                        base_values=shap_values.base_values,
                                        data=transformed_data,
                                        feature_names=transformed_feature_names)
-    # st.write(shap_explanation)
 
     st.write("Making predictions...")
     time.sleep(1)
@@ -349,7 +342,7 @@ def process_form_data(model, column_transformer, form_data) -> float:
         validated_form_data["latitude"], validated_form_data["longitude"])
 
 
-@st.experimental_fragment
+@st.fragment
 def get_form_data():
     with st.container(border=True):
         st.subheader("Parameters Selection")
@@ -509,27 +502,44 @@ def plot_shap_summary_and_waterfall(explanation: shap.Explanation):
 
 
 with st.spinner("Loading page data..."):
+    def init_message_generator(start):
+        yield "Initialized! Took "
+        yield f"{time.time() - start:.2f}"
+        yield " seconds."
+
+    start = time.time()
+    st.session_state["db"] = init_motherduckdb_conn()
+    fetch_listings_df()
+
+    version = fetch_latest_version()
+
+    st.session_state["column_transformer"] = get_column_transformer(version["tags"]["column_transformer_source"])
+    st.session_state["model"] = get_model(version["tags"]["model_name"], version["source"])
+    geocoder = Nominatim(user_agent="sg_rental_price_dashboard")
+
+    generator = init_message_generator(start)
+    st.write(''.join(generator))
+
     get_form_data()
 
-    # with st.expander("Show Feature Importances"):
-    #     plot_feature_importances()
 
 if "form_data" in st.session_state:
     with st.status("Predicting rental price...", expanded=True) as status:
         result = st.session_state.pop("form_data")
         prediction, explanation_obj, desc, user_coords = process_form_data(
-            model, column_transformer, result)
+            st.session_state["model"], st.session_state["column_transformer"], result)
         status.update(label="Prediction Completed",
                       state="complete", expanded=False)
 
     st.success(f"Predicted Rental Price: SGD **{prediction:.2f}/month**")
+    st.toast("Prediction Completed", icon="🎉")
 
     # Plot SHAP values
     plot_shap_summary_and_waterfall(explanation_obj)
     st.write(desc)
 
     # Load local listings data
-    listings_df = load_local_data("static/training_data_v3_cleaned.csv")
+    # listings_df = load_local_data("static/training_data_v3_cleaned.csv")
 
     # Fetch and plot listings within a radius
     radius_km = 5
@@ -539,5 +549,3 @@ if "form_data" in st.session_state:
 
     # st.write(user_coords)
     # st.write(nearby_listings[["property_name", "district", "distance"]])
-
-    st.toast("Prediction Completed", icon="🎉")

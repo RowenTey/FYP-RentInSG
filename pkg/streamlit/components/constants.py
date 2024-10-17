@@ -90,4 +90,4 @@ DEFAULT_VALUES = {
     "longitude": None
 }
 
-REQUIRED_FIELDS = ["bedrooms", "bathrooms", "dimensions", "district_id"]
+REQUIRED_FIELDS = ["bedrooms", "bathrooms", "dimensions", "district_id", "property_type"]

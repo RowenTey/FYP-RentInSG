@@ -1,0 +1,8 @@
+# ignore k8s folder
+k8s/
+
+# ignore cache
+__pycache__/
+
+# ignore venv
+st_venv/

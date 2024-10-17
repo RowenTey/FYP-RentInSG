@@ -124,38 +124,7 @@ def connect_to_motherduckdb() -> MotherDuckDBConnector:
 
 if __name__ == "__main__":
     from dotenv import load_dotenv
-
     load_dotenv()
-
-    # aws_access_key_id = os.getenv('AWS_ACCESS_KEY_ID')
-    # aws_secret_access_key = os.getenv('AWS_SECRET_ACCESS_KEY')
-    # aws_region = 'ap-southeast-1'
-    # s3_bucket = os.getenv('S3_BUCKET')
-    # s3_filepath = 'rental_prices/ninety_nine/2024-01-25.parquet.gzip'
 
     db = connect_to_motherduckdb()
     print("MotherDuckDB connection completed.")
-
-    # df = db.query_df_in_batch("""
-    #     SELECT
-    #         price,
-    #         bedroom,
-    #         bathroom,
-    #         dimensions,
-    #         floor_level,
-    #         furnishing,
-    #         facing,
-    #         built_year,
-    #         tenure,
-    #         property_type,
-    #         distance_to_mrt_in_m,
-    #         distance_to_sch_in_m,
-    #         distance_to_mall_in_m,
-    #         distance_to_hawker_in_m,
-    #         distance_to_supermarket_in_m,
-    #         is_whole_unit,
-    #         has_gym,
-    #         has_pool
-    #     FROM property_listing;
-    # """)
-    # df.to_csv('training_data.csv', index=False)

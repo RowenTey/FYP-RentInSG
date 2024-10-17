@@ -1,5 +1,4 @@
 from math import atan2, cos, radians, sin, sqrt
-
 from geopy.distance import geodesic
 
 
@@ -77,27 +76,3 @@ def find_nearest_single(data, df):
         df_loc = (df.iloc[ind, 1], df.iloc[ind, 2])
         distance = min(geodesic(src_loc, df_loc).m, distance)
     return distance
-
-
-if __name__ == "__main__":
-    # Example usage
-    from read_df_from_s3 import read_df_from_s3
-
-    df1 = read_df_from_s3("rental_prices/ninety_nine/2024-05-05.parquet.gzip")
-
-    from pkg.streamlit.components.motherduckdb_connector import connect_to_motherduckdb
-
-    db = connect_to_motherduckdb()
-    df2 = db.query_df("SELECT * FROM mrt_info")
-    print(df2)
-    print()
-    df2 = df2[["station_name", "latitude", "longitude"]]
-
-    df1["building_name"] = df1["property_name"].apply(
-        lambda x: x.split(" in ")[-1])
-
-    df1 = find_nearest(df1, df2, "nearest_mrt", "distance_to_nearest_mrt")
-    print(df1[["property_name", "nearest_mrt", "distance_to_nearest_mrt"]])
-    print(df1["nearest_mrt"].unique())
-    print()
-    print(df1[df1["nearest_mrt"].isna()])
