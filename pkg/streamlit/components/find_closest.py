@@ -2,23 +2,6 @@ from math import atan2, cos, radians, sin, sqrt
 from geopy.distance import geodesic
 
 
-def haversine(coord1, coord2):
-    """
-    Depracated, use geodesic instead
-    """
-    R = 6371  # radius of Earth in kilometers
-    lat1, lon1 = map(radians, coord1)
-    lat2, lon2 = map(radians, coord2)
-
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-
-    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-    c = 2 * atan2(sqrt(a), sqrt(1 - a))
-
-    return R * c * 1000  # convert to meters
-
-
 def find_nearest(
         df1,
         df2,
@@ -26,7 +9,6 @@ def find_nearest(
         distance_to_target_landmark,
         is_inference=False):
     """
-from components.coordinates import fetch_coordinates
     Taken from https://medium.com/@michael.wy.ong/web-scrape-geospatial-data-analyse-singapores-property-price-part-i-276caba320b # noqa: E501
 
     This function finds the nearest locations from the 2nd table from the 1st address
@@ -69,7 +51,6 @@ from components.coordinates import fetch_coordinates
 
 
 def find_nearest_single(data, df):
-    """ """
     src_loc = (data["latitude"], data["longitude"])
     distance = float("inf")
     for ind, _ in enumerate(df.iloc[:, 0]):

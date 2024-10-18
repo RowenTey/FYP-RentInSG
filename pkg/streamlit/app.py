@@ -1,16 +1,18 @@
+import os
+import io
+import json
 import time
 import shap
-import pickle
-
+import requests
 import numpy as np
 import pandas as pd
+import streamlit as st
 import plotly.express as px
 import matplotlib.pyplot as plt
-import streamlit as st
-from geopy.geocoders import Nominatim
+from datetime import datetime
 from geopy.distance import geodesic
 from components.constants import *
-from components.find_closest import find_nearest_single
+from utils.outliers import remove_outliers
 
 st.set_page_config(
     "Singapore Rental Price Analysis | Home",
@@ -19,119 +21,52 @@ st.set_page_config(
 )
 
 st.title("Singapore Rental Price Prediction Home")
-st.text("This page predicts the rental price of a property in Singapore 📈")
-st.info(
-    """
-    Fill in the form below with specific parameteres to predict monthly rental price of a property in Singapore.
-    __(\\* indicates required fields)__
-"""
-)
-
-if "model" not in st.session_state:
-    st.session_state["model"] = None
-
-if "column_transformer" not in st.session_state:
-    st.session_state["column_transformer"] = None
+st.text("This page predicts the rental price of a property in Singapore 💲")
 
 
-MLFLOW_TRACKING_URI = "https://ks-8000.leejacksonz.com/"
-REGISTERED_MODEL_NAME = "rent_in_sg_reg_model"
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000/")
+TWO_HOURS_IN_SECONDS = 2 * 60 * 60
 listings_df = pd.DataFrame()
-
-
-@st.cache_data
-def fetch_latest_version() -> dict:
-    import mlflow
-    client = mlflow.tracking.MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
-    # -1 because models are sorted by version in descending order
-    latest_version = dict(client.get_latest_versions(REGISTERED_MODEL_NAME)[-1])
-    print(latest_version)
-    return latest_version
-
-
-@st.cache_resource
-def get_model(model_name, source):
-    import mlflow
-    if model_name == 'xgboost':
-        return mlflow.xgboost.load_model(source)
-    elif model_name == 'lightgbm':
-        return mlflow.lightgbm.load_model(source)
-    elif model_name == 'catboost':
-        return mlflow.catboost.load_model(source)
-    else:
-        return mlflow.sklearn.load_model(source)
-
-
-@st.cache_resource
-def get_column_transformer(source):
-    import mlflow
-    column_transformer = None
-    dst_path = mlflow.artifacts.download_artifacts(source)
-    with open(dst_path, "rb") as file:
-        column_transformer = pickle.load(file)
-    return column_transformer
-
-
-@st.cache_resource
-def init_motherduckdb_conn():
-    from components.motherduckdb_connector import connect_to_motherduckdb
-    return connect_to_motherduckdb()
-
-
-@st.cache_data
-def fetch_info(_db, query, target_cols=None):
-    queried_df = _db.query_df(query)
-
-    if target_cols:
-        return queried_df[target_cols]
-
-    return queried_df
-
-
-@st.cache_data
-def load_local_data(file_path):
-    return pd.read_csv(file_path)
+explanation_obj = None
 
 
 @st.fragment(run_every="2h")
 def fetch_listings_df():
-    if "db" not in st.session_state:
+    global listings_df
+
+    if "listings_df" in st.session_state and \
+            "last_updated" in st.session_state and \
+            (time.time() - st.session_state["last_updated"]) < TWO_HOURS_IN_SECONDS:
+        listings_df = st.session_state["listings_df"]
         return
 
-    global listings_df
-    db = st.session_state["db"]
-    listings_df = db.query_df("SELECT * FROM property_listing")
+    # URL of your FastAPI endpoint
+    url = f"{BACKEND_URL}/data"
+
+    try:
+        # Make a GET request to the endpoint
+        response = requests.get(url, params={"table": "property_listing"})
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            # Read the CSV content into a DataFrame
+            csv_content = io.StringIO(response.text)
+            listings_df = pd.read_csv(csv_content)
+
+            listings_df = remove_outliers(listings_df, "price")
+
+            st.session_state["listings_df"] = listings_df
+            st.session_state["last_updated"] = time.time()
+            st.toast("Data fetched successfully!", icon='🚀')
+        else:
+            st.toast(f"Failed to fetch data. Status code: {response.status_code}", icon='😭')
+            listings_df = None
+    except Exception as e:
+        st.toast(f"An error occurred while fetching data: {str(e)}", icon='😭')
+        listings_df = None
 
 
-def update_feature_names(
-        explanation: shap.Explanation,
-        feature_names: list) -> shap.Explanation:
-    # Create a mapping from transformed feature names to original feature names
-    feature_map = {tf: map_transformed_feature_to_original(
-        tf, feature_names) for tf in explanation.feature_names}
-
-    # Update feature names in the explanation object
-    explanation.feature_names = [feature_map.get(
-        f, f) for f in explanation.feature_names]
-
-    return explanation
-
-
-def transform_form_data(form_data):
-    for key in form_data:
-        # set default values if form data is empty
-        if not form_data[key] and key in DEFAULT_VALUES:
-            form_data[key] = DEFAULT_VALUES[key]
-
-        # convert to proper format
-        if key == "tenure":
-            form_data[key] = form_data[key].lower()
-        elif key == "district_id":
-            form_data[key] = DISTRICTS[form_data[key]]
-
-    return form_data
-
-
+@st.cache_data
 def fetch_listings_within_radius(lat, lon, radius_km, listings_df):
     listings_df["distance"] = listings_df.apply(lambda row: geodesic(
         (lat, lon), (row["latitude"], row["longitude"])).km, axis=1)
@@ -139,6 +74,7 @@ def fetch_listings_within_radius(lat, lon, radius_km, listings_df):
     return nearby_listings
 
 
+@st.fragment
 def plot_listings_on_map(listings, user_location):
     # enforce latitude and longitude colummns to be numeric
     listings["latitude"] = pd.to_numeric(listings["latitude"])
@@ -154,196 +90,55 @@ def plot_listings_on_map(listings, user_location):
         hover_name="property_name",
         hover_data={"price": True, "distance": True},
         color_discrete_sequence=["blue"],
+        custom_data=["property_name", "price", "source", "url"],
         zoom=12,
-        height=600
+        height=600,
+        center={"lat": user_location[0], "lon": user_location[1]},
+        title="Nearby Listings"
     )
+
     user_location_df = pd.DataFrame(
         [{"latitude": user_location[0],
           "longitude": user_location[1],
-          "type": "User Location"}])
+          "type": "User Location", "marker_size": 3}])
     fig.add_trace(px.scatter_mapbox(
         user_location_df,
         lat="latitude",
         lon="longitude",
         hover_name="type",
         color_discrete_sequence=["red"],
+        size="marker_size"
     ).data[0])
+
     fig.update_layout(mapbox_style="open-street-map")
 
-    st.subheader("Nearby Listings")
-    st.plotly_chart(fig)
+    def on_select(event):
+        if len(event["selection"]["points"]) == 0 or "customdata" not in event["selection"]["points"][0]:
+            return
+        prop_name, price, source, url, _ = event["selection"]["points"][0]["customdata"]
 
+        with st.container(border=True):
+            st.subheader("Listing Details 🧾")
+            st.write(f"Listing Title: {prop_name}")
+            st.write(f"Price: ${price}/month")
+            st.write(f"Source: {source}")
+            st.write(f"URL: {url}")
 
-def add_distance_info(validated_form_data: dict, fill_default: bool = False) -> dict:
-    import json
-
-    enrichment = {
-        "distance_to_mrt_in_m": (
-            "SELECT * FROM mrt_info",
-            ["station_name", "latitude", "longitude"],
-        ),
-        "distance_to_mall_in_m": (
-            "SELECT * FROM mall_info",
-            ["name", "latitude", "longitude"],
-        ),
-        "distance_to_sch_in_m": (
-            "SELECT * FROM primary_school_info",
-            ["name", "latitude", "longitude"],
-        ),
-        "distance_to_hawker_in_m": (
-            "SELECT * FROM hawker_centre_info",
-            ["name", "latitude", "longitude"],
-        ),
-        "distance_to_supermarket_in_m": (
-            "SELECT * FROM supermarket_info",
-            ["name", "latitude", "longitude"],
-        ),
-    }
-
-    # set the key in form data so default values are filled in later
-    if fill_default:
-        for key in enrichment.keys():
-            validated_form_data[key] = None
-
-        with open("static/district_coords.json", "r") as f:
-            coords = json.load(f)
-
-        validated_form_data["latitude"] = coords[
-            validated_form_data["district_id"]][0]
-        validated_form_data["longitude"] = coords[
-            validated_form_data["district_id"]][1]
-
-        st.write(
-            f"Added default distance values: ({validated_form_data['latitude']}, {validated_form_data['longitude']})")
-
-        return validated_form_data
-
-    if "db" not in st.session_state:
-        return validated_form_data
-
-    db = st.session_state["db"]
-    location = geocoder.geocode(f"{validated_form_data['address']}, Singapore")
-    validated_form_data["latitude"] = location.latitude
-    validated_form_data["longitude"] = location.longitude
-
-    for key, val in enrichment.items():
-        df2 = fetch_info(db, val[0], val[1])
-        validated_form_data[key] = find_nearest_single(
-            {
-                "latitude": validated_form_data["latitude"],
-                "longitude": validated_form_data["longitude"],
-            },
-            df2,
-        )
-
-    return validated_form_data
-
-
-def generate_shap_explanation(shap_values, feature_names, column_transformer):
-    # Get feature names after transformation
-    transformed_feature_names = column_transformer.get_feature_names_out()
-
-    # Get the feature importances
-    feature_importance = np.abs(shap_values).mean(0)
-
-    # Sort features by importance
-    sorted_idx = feature_importance.argsort()
-    sorted_features = transformed_feature_names[sorted_idx]
-
-    # Get top 5 most important features
-    top_features = sorted_features[-5:]
-    top_values = shap_values[0][sorted_idx][-5:]
-
-    explanation = "The rental price predicted is based on several factors. Here are the top 5 most influential features:\n\n"  # noqa: E501
-
-    for feature, value in zip(reversed(top_features), reversed(top_values)):
-        # Map back to original feature if possible
-        print(feature, feature_names)
-        original_feature = map_transformed_feature_to_original(
-            feature, feature_names)
-
-        if value > 0:
-            direction = "increased"
-        else:
-            direction = "decreased"
-
-        explanation += f"- {original_feature}: This feature {direction} the predicted rental price (relative impact: {abs(value):.4f}).\n"  # noqa: E501
-
-    explanation += "\nThese values highlight the relative impact of each feature on the prediction compared to an average property."  # noqa: E501
-
-    return explanation
-
-
-def map_transformed_feature_to_original(
-        transformed_feature, original_features):
-    for original in original_features:
-        if original in transformed_feature:
-            return original
-    return transformed_feature
-
-
-def process_form_data(model, column_transformer, form_data) -> float:
-    if form_data["address"] is not None and form_data["address"] != "":
-        st.write("Fetching distance info...")
-        form_data = add_distance_info(form_data)
-    else:
-        st.write("Address is empty, using default distance values...")
-        form_data = add_distance_info(form_data, True)
-
-    st.write("Transforming form data...")
-    time.sleep(1)
-    validated_form_data = transform_form_data(form_data)
-
-    st.write("Creating input DataFrame...")
-    time.sleep(1)
-    input_df = pd.DataFrame(validated_form_data, index=[0])
-    input_df = input_df.drop(
-        columns=["address", "latitude", "longitude"], axis=1)
-    print(input_df)
-
-    st.write("Transforming input DataFrame...")
-    time.sleep(1)
-
-    # Apply the same transformations to the form data as done during training
-    transformed_data = column_transformer.transform(input_df)
-
-    # Compute SHAP values
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(transformed_data)
-
-    # Get the feature names after transformation
-    transformed_feature_names = column_transformer.get_feature_names_out()
-
-    # Create the explainer
-    explainer = shap.TreeExplainer(model)
-
-    # Compute SHAP values
-    shap_values = explainer(transformed_data)
-
-    # Create a custom Explanation object
-    explanation_obj = shap.Explanation(values=shap_values.values,
-                                       base_values=shap_values.base_values,
-                                       data=transformed_data,
-                                       feature_names=transformed_feature_names)
-
-    st.write("Making predictions...")
-    time.sleep(1)
-    # Make predictions using the model
-    prediction, *_ = model.predict(transformed_data)
-
-    st.write("Generating description and plot...")
-    prediction_desc = generate_shap_explanation(
-        explainer.shap_values(transformed_data),
-        input_df.columns,
-        column_transformer)
-    explanation_obj = update_feature_names(explanation_obj, input_df.columns)
-
-    return prediction, explanation_obj, prediction_desc, (
-        validated_form_data["latitude"], validated_form_data["longitude"])
+    event = st.plotly_chart(fig, on_select='rerun')
+    on_select(event)
 
 
 @st.fragment
 def get_form_data():
+    st.info(
+        """
+        Fill in the form below with specific parameteres to predict monthly rental price of a property in Singapore.
+        __(\\* indicates required fields)__
+    """
+    )
+    formatted_time = datetime.fromtimestamp(st.session_state['last_updated']).strftime('%I:%M%p %A %dth %b %Y')
+    st.write(f"Last updated: {formatted_time}")
+
     with st.container(border=True):
         st.subheader("Parameters Selection")
 
@@ -470,6 +265,51 @@ def get_form_data():
             st.rerun()
 
 
+def predict_and_explain(form_data):
+    response = requests.post(f"{BACKEND_URL}/inference", json=form_data)
+    if response.status_code == 200:
+        return response.json()
+
+    st.error(f"Error: {response.status_code} - {response.text}")
+    return None
+
+
+def predict_and_explain_stream(form_data: dict):
+    try:
+        response = requests.post(f"{BACKEND_URL}/inference/stream", json=form_data, stream=True)
+
+        if response.status_code == 200:
+            result = {}
+            buffer = ""
+            for chunk in response.iter_content(chunk_size=1, decode_unicode=True):
+                if not chunk:
+                    continue
+
+                buffer += chunk
+                try:
+                    update = json.loads(buffer)
+                    # Reset buffer after successful parse
+                    buffer = ""
+
+                    if 'result' in update:
+                        result = update['result']
+
+                    if 'progress' in update:
+                        # Update the progress bar
+                        st.text(update['message'])
+                        st.progress(update['progress'] / 100)
+                except json.JSONDecodeError:
+                    # If we can't parse the JSON yet, continue to the next chunk
+                    continue
+            return result
+        else:
+            st.error(f"Error: {response.status_code} - {response.text}")
+            return None
+    except requests.RequestException as e:
+        st.error(f"Request failed: {str(e)}")
+        return None
+
+
 def plot_shap_summary_and_waterfall(explanation: shap.Explanation):
     st.subheader("Plots")
 
@@ -479,7 +319,7 @@ def plot_shap_summary_and_waterfall(explanation: shap.Explanation):
     with col1:
         st.subheader("SHAP Summary Plot")
         # Create a new figure for the summary plot
-        fig_summary, ax_summary = plt.subplots(figsize=(10, 8))
+        fig_summary, _ = plt.subplots(figsize=(10, 8))
 
         # Plot the SHAP summary plot
         shap.summary_plot(explanation.values, explanation.data,
@@ -492,7 +332,7 @@ def plot_shap_summary_and_waterfall(explanation: shap.Explanation):
     with col2:
         st.subheader("SHAP Waterfall Plot")
         # Create a new figure for the waterfall plot
-        fig_waterfall, ax_waterfall = plt.subplots(figsize=(10, 8))
+        fig_waterfall, _ = plt.subplots(figsize=(10, 8))
 
         # Plot the SHAP waterfall plot
         shap.plots.waterfall(explanation[0], show=False)
@@ -508,41 +348,39 @@ with st.spinner("Loading page data..."):
         yield " seconds."
 
     start = time.time()
-    st.session_state["db"] = init_motherduckdb_conn()
     fetch_listings_df()
+    st.toast("".join(init_message_generator(start)), icon="⚡")
 
-    version = fetch_latest_version()
-
-    st.session_state["column_transformer"] = get_column_transformer(version["tags"]["column_transformer_source"])
-    st.session_state["model"] = get_model(version["tags"]["model_name"], version["source"])
-    geocoder = Nominatim(user_agent="sg_rental_price_dashboard")
-
-    generator = init_message_generator(start)
-    st.write(''.join(generator))
-
-    get_form_data()
+    if "listings_df" not in st.session_state:
+        st.error("Could not fetch data, please try again later...")
+    else:
+        get_form_data()
 
 
 if "form_data" in st.session_state:
     with st.status("Predicting rental price...", expanded=True) as status:
-        result = st.session_state.pop("form_data")
-        prediction, explanation_obj, desc, user_coords = process_form_data(
-            st.session_state["model"], st.session_state["column_transformer"], result)
+        response = predict_and_explain_stream(form_data=st.session_state.pop("form_data"))
+        print(response)
         status.update(label="Prediction Completed",
                       state="complete", expanded=False)
 
-    st.success(f"Predicted Rental Price: SGD **{prediction:.2f}/month**")
+    st.success(f"Predicted Rental Price: SGD **{response['prediction']:.2f}/month**")
     st.toast("Prediction Completed", icon="🎉")
+
+    explanation_obj = shap.Explanation(
+        values=np.array(response['shap_values']),
+        base_values=np.array(response['shap_base_values']),
+        data=np.array(response['shap_data']),
+        feature_names=response['shap_feature_names']
+    )
 
     # Plot SHAP values
     plot_shap_summary_and_waterfall(explanation_obj)
-    st.write(desc)
-
-    # Load local listings data
-    # listings_df = load_local_data("static/training_data_v3_cleaned.csv")
+    st.write(response['description'])
 
     # Fetch and plot listings within a radius
-    radius_km = 5
+    radius_km = 2.5
+    user_coords = response['coordinates']
     nearby_listings = fetch_listings_within_radius(
         user_coords[0], user_coords[1], radius_km, listings_df)
     plot_listings_on_map(nearby_listings, user_coords)

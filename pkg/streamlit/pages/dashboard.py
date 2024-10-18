@@ -2,6 +2,7 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 import plotly.figure_factory as ff
+from utils.outliers import remove_outliers
 
 st.set_page_config(
     "Singapore Rental Price Analysis | Dashboard",
@@ -13,21 +14,10 @@ st.title("📈 Singapore Rental Price Analysis Dashboard")
 st.text("This dashboard provides a comprehensive overview of the Singapore rental market based on the dataset used to train the model.")
 
 
-def remove_outliers(df, key_col):
-    # Remove outliers using the IQR method based on key_col
-    Q1 = df[key_col].quantile(0.25)
-    Q3 = df[key_col].quantile(0.75)
-    IQR = Q3 - Q1
-    lower_bound = Q1 - 1.5 * IQR
-    upper_bound = Q3 + 1.5 * IQR
-
-    # Keep only data points within the lower and upper bounds
-    return df[(df[key_col] >= lower_bound) & (df[key_col] <= upper_bound)]
-
-
 @st.cache_data
 def load_data():
-    df = pd.read_csv("static/training_data_v3_cleaned.csv")
+    df = (st.session_state["listings_df"]).copy()
+    df = df[df['price'] >= 100]
     df['scraped_on'] = pd.to_datetime(df['scraped_on'])
     df = remove_outliers(df, 'price')
     df = remove_outliers(df, 'dimensions')

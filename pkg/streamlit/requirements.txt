@@ -99,7 +99,6 @@ pygwalker==0.4.9.4
 pyparsing==3.1.4
 python-dateutil==2.9.0.post0
 pytz==2024.1
-# pywin32==306
 PyYAML==6.0.2
 querystring-parser==1.2.4
 quickjs==1.19.4

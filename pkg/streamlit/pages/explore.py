@@ -16,7 +16,8 @@ st.text("This page allows you to explore the dataset used to train the model.")
 
 @st.cache_resource
 def get_pyg_renderer() -> "StreamlitRenderer":
-    df = pd.read_csv("static/training_data_v3_cleaned.csv")
+    df = st.session_state["listings_df"]
+    df = df[df['price'] >= 100]
     return StreamlitRenderer(
         df,
         spec="static/gw_config.json",
