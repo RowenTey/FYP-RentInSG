@@ -47,7 +47,7 @@ class OhMyHomeScraper(AbstractPropertyScraper):
 
         # Set up Chrome options for headless mode
         chrome_options = Options()
-        # chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--headless")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--log-level=3")
         chrome_options.add_argument("--no-sandbox")
