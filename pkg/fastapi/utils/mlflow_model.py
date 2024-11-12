@@ -240,12 +240,19 @@ class MLflowModel:
         result = {
             "prediction": prediction,
             "description": prediction_desc,
-            "shap_values": explanation_obj.values.tolist() if isinstance(explanation_obj.values, np.ndarray) else explanation_obj.values,
-            "shap_base_values": explanation_obj.base_values.tolist() if isinstance(explanation_obj.base_values, np.ndarray) else explanation_obj.base_values,
-            "shap_data": explanation_obj.data.tolist() if isinstance(explanation_obj.data, np.ndarray) else explanation_obj.data,
+            "shap_values": explanation_obj.values.tolist() if isinstance(
+                explanation_obj.values,
+                np.ndarray) else explanation_obj.values,
+            "shap_base_values": explanation_obj.base_values.tolist() if isinstance(
+                explanation_obj.base_values,
+                np.ndarray) else explanation_obj.base_values,
+            "shap_data": explanation_obj.data.tolist() if isinstance(
+                explanation_obj.data,
+                np.ndarray) else explanation_obj.data,
             "shap_feature_names": explanation_obj.feature_names,
-            "coordinates": (validated_form_data["latitude"], validated_form_data["longitude"])
-        }
+            "coordinates": (
+                validated_form_data["latitude"],
+                validated_form_data["longitude"])}
 
         return result
 
@@ -292,12 +299,19 @@ class MLflowModel:
             result = {
                 "prediction": prediction,
                 "description": prediction_desc,
-                "shap_values": explanation_obj.values.tolist() if isinstance(explanation_obj.values, np.ndarray) else explanation_obj.values,
-                "shap_base_values": explanation_obj.base_values.tolist() if isinstance(explanation_obj.base_values, np.ndarray) else explanation_obj.base_values,
-                "shap_data": explanation_obj.data.tolist() if isinstance(explanation_obj.data, np.ndarray) else explanation_obj.data,
+                "shap_values": explanation_obj.values.tolist() if isinstance(
+                    explanation_obj.values,
+                    np.ndarray) else explanation_obj.values,
+                "shap_base_values": explanation_obj.base_values.tolist() if isinstance(
+                    explanation_obj.base_values,
+                    np.ndarray) else explanation_obj.base_values,
+                "shap_data": explanation_obj.data.tolist() if isinstance(
+                    explanation_obj.data,
+                    np.ndarray) else explanation_obj.data,
                 "shap_feature_names": explanation_obj.feature_names,
-                "coordinates": (validated_form_data["latitude"], validated_form_data["longitude"])
-            }
+                "coordinates": (
+                    validated_form_data["latitude"],
+                    validated_form_data["longitude"])}
 
             yield json.dumps({"progress": 100, "message": "Prediction complete", "result": result})
         return progress_generator(form_data)
