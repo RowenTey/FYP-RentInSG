@@ -123,7 +123,7 @@ def plot_listings_on_map(listings, user_location):
             st.write(f"Price: ${price}/month")
             st.write(f"Source: {source}")
             st.write(f"URL: {url}")
-    
+
     st.subheader("Nearby Listings")
     event = st.plotly_chart(fig, on_select='rerun')
     on_select(event)
@@ -181,7 +181,7 @@ def get_form_data():
             help="Select the property type of the property",
             index=None,
         )
-        
+
         with st.expander("Expand for optional fields"):
             address_input_box = st.text_input(
                 label="Address?", placeholder="Enter the address", value=None)
@@ -336,10 +336,10 @@ def plot_shap_summary_and_waterfall(explanation: shap.Explanation):
 
         # Plot the SHAP summary plot for the top 10 features
         shap.summary_plot(
-            top_10_values, 
+            top_10_values,
             top_10_data,
             feature_names=top_10_feature_names,
-            plot_type="bar", 
+            plot_type="bar",
         )
 
         plt.tight_layout()
