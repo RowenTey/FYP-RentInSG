@@ -95,7 +95,7 @@ pydantic==2.9.0
 pydantic_core==2.23.2
 pydeck==0.9.1
 Pygments==2.18.0
-pygwalker==0.4.9.4
+pygwalker==0.4.9.9
 pyparsing==3.1.4
 python-dateutil==2.9.0.post0
 pytz==2024.1

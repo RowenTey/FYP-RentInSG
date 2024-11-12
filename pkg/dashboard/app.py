@@ -15,7 +15,7 @@ from components.constants import *
 from utils.outliers import remove_outliers
 
 st.set_page_config(
-    "Singapore Rental Price Analysis | Home",
+    "RentInSG",
     page_icon="🏠",
     layout="wide",
 )
@@ -40,8 +40,8 @@ def fetch_listings_df():
         listings_df = st.session_state["listings_df"]
         return
 
-    # URL of your FastAPI endpoint
-    url = f"{BACKEND_URL}/data"
+    # URL of FastAPI endpoint
+    url = f"{BACKEND_URL}/data/"
 
     try:
         # Make a GET request to the endpoint
@@ -62,6 +62,7 @@ def fetch_listings_df():
             st.toast(f"Failed to fetch data. Status code: {response.status_code}", icon='😭')
             listings_df = None
     except Exception as e:
+        print(e)
         st.toast(f"An error occurred while fetching data: {str(e)}", icon='😭')
         listings_df = None
 
@@ -94,7 +95,6 @@ def plot_listings_on_map(listings, user_location):
         zoom=12,
         height=600,
         center={"lat": user_location[0], "lon": user_location[1]},
-        title="Nearby Listings"
     )
 
     user_location_df = pd.DataFrame(
@@ -123,7 +123,8 @@ def plot_listings_on_map(listings, user_location):
             st.write(f"Price: ${price}/month")
             st.write(f"Source: {source}")
             st.write(f"URL: {url}")
-
+    
+    st.subheader("Nearby Listings")
     event = st.plotly_chart(fig, on_select='rerun')
     on_select(event)
 
@@ -180,63 +181,64 @@ def get_form_data():
             help="Select the property type of the property",
             index=None,
         )
+        
+        with st.expander("Expand for optional fields"):
+            address_input_box = st.text_input(
+                label="Address?", placeholder="Enter the address", value=None)
 
-        address_input_box = st.text_input(
-            label="Address?", placeholder="Enter the address", value=None)
+            built_year_input_box = st.number_input(
+                label="Built Year?",
+                placeholder="Enter the built year",
+                min_value=1950,
+                max_value=2024,
+                value=None,
+            )
 
-        built_year_input_box = st.number_input(
-            label="Built Year?",
-            placeholder="Enter the built year",
-            min_value=1950,
-            max_value=2024,
-            value=None,
-        )
+            furnishing_select_box = st.selectbox(
+                label="Furnishing?",
+                options=FURNISHING,
+                placeholder="Select a furnishing type",
+                help="Select the furnishing type of the property",
+                index=None,
+            )
 
-        furnishing_select_box = st.selectbox(
-            label="Furnishing?",
-            options=FURNISHING,
-            placeholder="Select a furnishing type",
-            help="Select the furnishing type of the property",
-            index=None,
-        )
+            facing_select_box = st.selectbox(
+                label="Facing?",
+                options=FACING,
+                placeholder="Select a facing direction",
+                help="Select the facing direction of the property",
+                index=None,
+            )
 
-        facing_select_box = st.selectbox(
-            label="Facing?",
-            options=FACING,
-            placeholder="Select a facing direction",
-            help="Select the facing direction of the property",
-            index=None,
-        )
+            floor_level_select_box = st.selectbox(
+                label="Floor Level?",
+                options=FLOOR_LEVEL,
+                placeholder="Select a floor level",
+                help="Select the floor level of the property",
+                index=None,
+            )
 
-        floor_level_select_box = st.selectbox(
-            label="Floor Level?",
-            options=FLOOR_LEVEL,
-            placeholder="Select a floor level",
-            help="Select the floor level of the property",
-            index=None,
-        )
+            tenure_select_box = st.selectbox(
+                label="Tenure?",
+                options=TENURE,
+                placeholder="Select a tenure type",
+                help="Select the tenure type of the property",
+                index=None,
+            )
 
-        tenure_select_box = st.selectbox(
-            label="Tenure?",
-            options=TENURE,
-            placeholder="Select a tenure type",
-            help="Select the tenure type of the property",
-            index=None,
-        )
+            col3, col4 = st.columns(2)
 
-        col3, col4 = st.columns(2)
+            has_gym_checkbox = col3.checkbox(
+                label="Has Gym?",
+            )
 
-        has_gym_checkbox = col3.checkbox(
-            label="Has Gym?",
-        )
+            has_pool_checkbox = col4.checkbox(
+                label="Has Pool?",
+            )
 
-        has_pool_checkbox = col4.checkbox(
-            label="Has Pool?",
-        )
-
-        is_whole_unit_checkbox = st.checkbox(
-            label="Is Whole Unit?",
-        )
+            is_whole_unit_checkbox = st.checkbox(
+                label="Is Whole Unit?",
+            )
 
         can_submit = (
             bedroom_select_box
@@ -318,13 +320,27 @@ def plot_shap_summary_and_waterfall(explanation: shap.Explanation):
 
     with col1:
         st.subheader("SHAP Summary Plot")
-        # Create a new figure for the summary plot
-        fig_summary, _ = plt.subplots(figsize=(10, 8))
+        # Calculate mean absolute SHAP values for each feature
+        mean_abs_shap_values = np.abs(explanation.values).mean(axis=0)
 
-        # Plot the SHAP summary plot
-        shap.summary_plot(explanation.values, explanation.data,
-                          feature_names=explanation.feature_names,
-                          plot_type="bar", show=False)
+        # Get the indices of the top 10 features with the highest mean absolute SHAP values
+        top_10_indices = np.argsort(mean_abs_shap_values)[-10:][::-1]
+
+        # Filter the data to only include the top 10 features
+        top_10_values = explanation.values[:, top_10_indices]
+        top_10_data = explanation.data[:, top_10_indices]
+        top_10_feature_names = [explanation.feature_names[i] for i in top_10_indices]
+
+        # Create a new figure for the summary plot
+        fig_summary, _ = plt.subplots(figsize=(10, 6))
+
+        # Plot the SHAP summary plot for the top 10 features
+        shap.summary_plot(
+            top_10_values, 
+            top_10_data,
+            feature_names=top_10_feature_names,
+            plot_type="bar", 
+        )
 
         plt.tight_layout()
         st.pyplot(fig_summary, bbox_inches='tight')
@@ -332,7 +348,7 @@ def plot_shap_summary_and_waterfall(explanation: shap.Explanation):
     with col2:
         st.subheader("SHAP Waterfall Plot")
         # Create a new figure for the waterfall plot
-        fig_waterfall, _ = plt.subplots(figsize=(10, 8))
+        fig_waterfall, _ = plt.subplots(figsize=(10, 6))
 
         # Plot the SHAP waterfall plot
         shap.plots.waterfall(explanation[0], show=False)
@@ -360,7 +376,7 @@ with st.spinner("Loading page data..."):
 if "form_data" in st.session_state:
     with st.status("Predicting rental price...", expanded=True) as status:
         response = predict_and_explain_stream(form_data=st.session_state.pop("form_data"))
-        print(response)
+        # print(json.dumps(response, indent=2))
         status.update(label="Prediction Completed",
                       state="complete", expanded=False)
 

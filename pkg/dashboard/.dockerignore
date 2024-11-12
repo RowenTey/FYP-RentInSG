@@ -1,0 +1,11 @@
+# ignore cache
+
+**pycache**/
+
+# ignore venv
+
+st_venv/
+
+# ignore tests
+
+tests/

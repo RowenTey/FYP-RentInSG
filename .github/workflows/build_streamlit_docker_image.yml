@@ -7,7 +7,7 @@ on:
       - main
       - airflow
     paths:
-      - "pkg/streamlit/**"
+      - "pkg/dashboard/**"
 
 jobs:
   build:
@@ -30,7 +30,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: pkg/streamlit/Dockerfile
+          file: pkg/dashboard/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_HUB_REPO }}:streamlit-latest,${{ secrets.DOCKER_HUB_USERNAME }}/${{ secrets.DOCKER_HUB_REPO }}:streamlit-${{ github.sha }}

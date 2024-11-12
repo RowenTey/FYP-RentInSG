@@ -1,11 +1,11 @@
 import time
 
-import pandas as pd
 import streamlit as st
+from utils.outliers import remove_outliers
 from pygwalker.api.streamlit import StreamlitRenderer
 
 st.set_page_config(
-    "Singapore Rental Price Analysis | Explore",
+    "RentInSG | Explore",
     page_icon="🏠",
     layout="wide",
 )
@@ -18,6 +18,9 @@ st.text("This page allows you to explore the dataset used to train the model.")
 def get_pyg_renderer() -> "StreamlitRenderer":
     df = st.session_state["listings_df"]
     df = df[df['price'] >= 100]
+    df = remove_outliers(df, 'price')
+    df = remove_outliers(df, 'price_per_sqft')
+    df = remove_outliers(df, 'dimensions')
     return StreamlitRenderer(
         df,
         spec="static/gw_config.json",
@@ -27,6 +30,5 @@ def get_pyg_renderer() -> "StreamlitRenderer":
 
 
 with st.spinner("Loading data..."):
-    time.sleep(1)
     renderer = get_pyg_renderer()
     renderer.explorer(default_tab="data")
