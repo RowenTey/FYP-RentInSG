@@ -18,6 +18,7 @@ st.text("This page allows you to explore the dataset used to train the model.")
 def get_pyg_renderer() -> "StreamlitRenderer":
     df = st.session_state["listings_df"]
     df = df[df['price'] >= 100]
+    df = df[df['property_type'].isna() == False]
     df = remove_outliers(df, 'price')
     df = remove_outliers(df, 'price_per_sqft')
     df = remove_outliers(df, 'dimensions')
