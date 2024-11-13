@@ -1,3 +1,4 @@
+# fmt: off
 import os
 import sys
 
@@ -9,7 +10,6 @@ import random
 import time
 from abc import ABC, abstractmethod
 from datetime import date
-
 import cloudscraper as cfscrape
 import pandas as pd
 import psutil
@@ -19,6 +19,7 @@ from fake_useragent import UserAgent
 from requests.adapters import HTTPAdapter
 from urllib3 import Retry
 from utils.notify import send_message
+# fmt: on
 
 
 class AbstractPropertyScraper(ABC):
@@ -45,7 +46,7 @@ class AbstractPropertyScraper(ABC):
         get_prop_info(soup: BeautifulSoup) -> Dict[str, Any]: Extracts the property information from the HTML content.
         scrape_rental_prices(district: str, debug: bool) -> None: Scrapes rental prices for a specific district.
         output_to_csv(df: pd.DataFrame) -> None: Outputs the scraped data to a CSV file.
-        initial_fetch() -> Tuple[BeautifulSoup, int]: Fetches the initial HTML content and determines the number of pages to scrape.
+        initial_fetch() -> Tuple[BeautifulSoup, int]: Fetches the initial HTML content and determines the number of pages to scrape. # noqa: E501
         logging.info_title() -> None: logging.infos the title of the scraper.
         run(debug: bool) -> None: Runs the scraper for all districts.
         to_snake_case(input_string: str) -> str: Converts a string to snake case.
@@ -81,6 +82,7 @@ class AbstractPropertyScraper(ABC):
         "D27": "Sembawang / Yishun",
         "D28": "Seletar / Yio Chu Kang",
     }
+
     COLUMNS = [
         "property_name",
         "listing_id",
@@ -105,7 +107,12 @@ class AbstractPropertyScraper(ABC):
         "facilities",
     ]
 
-    def __init__(self, header: str, key: str, query: str):
+    def __init__(
+            self,
+            header: str,
+            key: str,
+            query: str,
+            use_proxies: bool = False):
         """
         Initializes an AbstractPropertyScraper object.
 
@@ -118,17 +125,22 @@ class AbstractPropertyScraper(ABC):
         self.header = header
         self.key = key
         self.query = query
+        self.use_proxies = use_proxies
         self.html_content = ""
         self.platform_name = ""
         self.properties_per_page = 50  # default to 50 properties per page
         self.pages_to_fetch = 10  # default to 10 pages
         self.pagination_element = ""
-        self.property_card_listing_div_class = ""
         self.rental_price_dir = "rental_prices/"
         self.failure_counter = 0
         self.cpu_threshold = 80
         self.props = []
         self.session = self.create_scraper()
+
+        self.proxies = []
+        if self.use_proxies:
+            self.proxies = AbstractPropertyScraper.get_proxies()
+            self.rotate_proxy()
 
     def fetch_html(self, url: str, has_pages: bool) -> BeautifulSoup:
         """
@@ -151,6 +163,9 @@ class AbstractPropertyScraper(ABC):
                 time.sleep(random.randint(1, 5))
                 self.html_content = scraper.get(url).text
                 logging.info("=" * 75)
+
+                with open("test.html", "w", encoding="utf-8") as f:
+                    f.write(self.html_content)
 
                 soup = BeautifulSoup(self.html_content, "html.parser")
 
@@ -180,8 +195,13 @@ class AbstractPropertyScraper(ABC):
             return None
 
     def create_scraper(self):
-        ua = UserAgent()
-        headers = {"User-Agent": ua.random}
+        """
+        Creates a scraper object with a random User-Agent header and a retry mechanism.
+
+        Returns:
+            A cfscrape scraper object with a session and a delay.
+        """
+        headers = {"User-Agent": UserAgent().random}
 
         session = requests.Session()
         retry = Retry(connect=3, backoff_factor=1,
@@ -191,21 +211,32 @@ class AbstractPropertyScraper(ABC):
         session.mount("http://", adapter)
         session.mount("https://", adapter)
         session.headers.update(headers)
-        scraper = cfscrape.create_scraper(sess=session, delay=20)
 
-        return scraper
+        return cfscrape.create_scraper(sess=session, delay=30)
 
     def handle_retry(self, reason, trial):
+        """
+        Handles retry logic for a failed request.
+
+        Parameters:
+            reason (str): The reason for the retry.
+            trial (int): The current trial number.
+        """
         logging.info(f"{reason} -> Retrying ({trial}/20)...")
-        time.sleep(random.randint(1, 5))
+        time.sleep(random.randint(1, 10))
         self.failure_counter += 1
 
         # Wait 30s every 10 tries
         if trial % 10 == 0:
             logging.info("Connection reset, retrying in 30 secs...")
+            self.rotate_proxy()
             time.sleep(30)
 
     def monitor_cpu(self):
+        """
+        Monitors the CPU usage and logs the usage percentage.
+        If the CPU usage exceeds the threshold, logs a message and sleeps for 30 seconds.
+        """
         cpu_usage = psutil.cpu_percent(interval=1)
         logging.info(f"CPU usage: {cpu_usage}%")
         if cpu_usage > self.cpu_threshold:
@@ -282,7 +313,8 @@ class AbstractPropertyScraper(ABC):
             # Check if the CSV file exists
             file_exists = os.path.isfile(output_path)
 
-            # Open the CSV file in append mode if it exists, otherwise in write mode
+            # Open the CSV file in append mode if it exists, otherwise in write
+            # mode
             with open(output_path, "a+" if file_exists else "w", newline="") as file:
                 # Write the header only if the file is newly created
                 df.to_csv(file, index=False, header=not file_exists)
@@ -299,8 +331,7 @@ class AbstractPropertyScraper(ABC):
         Fetches the initial HTML content and determines the number of pages to scrape.
 
         Returns:
-            Tuple[BeautifulSoup, int]: The parsed HTML content and the number of pages.
-
+            res (Tuple[BeautifulSoup, int]): The parsed HTML content and the number of pages.
         """
         soup = self.fetch_html(self.header + self.key + self.query, True)
         if not soup:
@@ -316,12 +347,18 @@ class AbstractPropertyScraper(ABC):
 
         """
         logging.info(
-            f"\n\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n"
+            f"\n\n===================================================\n{self.platform_name} Rental Price Scraper v1.0\nAuthor: Rowen\n===================================================\n"  # noqa: E501
         )
         logging.info(
             "Job initiated with query on rental properties in Singapore.")
 
     def check_for_failure(self):
+        """
+        Checks for failures in the scraping process.
+
+        Sends a message if the failure counter exceeds 100, if there is an error reading the CSV file,
+        if the CSV file is empty, or if the null values in any column exceed 50%.
+        """
         if self.failure_counter >= 100:
             send_message(
                 f"{self.platform_name} Scraper",
@@ -357,6 +394,24 @@ class AbstractPropertyScraper(ABC):
             f"Scraping completed successfully - {len(df)}!",
         )
 
+    def rotate_proxy(self):
+        """
+        Rotates the proxy used by the scraper.
+
+        This function selects a random proxy from the list of available proxies and updates the session's proxy
+        settings with the selected proxy's IP and port.
+        If the `use_proxies` flag is set to False, the function returns without performing any action.
+        """
+        if not self.use_proxies:
+            return
+
+        proxy = random.choice(self.proxies)
+        proxy_url = f"http://{proxy['ip']}:{proxy['port']}"
+        logging.info(f"Rotating proxy: {proxy_url}")
+        self.session.proxies.update(
+            {"http": proxy_url}
+        )
+
     def run(self, debug):
         """
         Runs the scraper for all districts.
@@ -385,3 +440,21 @@ class AbstractPropertyScraper(ABC):
 
         """
         return input_string.replace(" ", "_").lower()
+
+    @staticmethod
+    def get_proxies() -> None:
+        """
+        Fetches proxies from the Proxynova API.
+
+        Returns:
+            List[str]: A list of proxies.
+
+        """
+        try:
+            res = requests.get(
+                'https://api.proxynova.com/proxy/find?url=https%3A%2F%2Fwww.proxynova.com%2Fproxy-server-list%2Felite-proxies%2F')  # noqa: E501
+            data = res.json()
+            return data['proxies']
+        except Exception as e:
+            logging.info(f"Error fetching proxies: {e}")
+            return []

@@ -5,6 +5,7 @@
 # Ignore temporary files
 *~
 __pycache__/
+catboost_info/
 
 # Ignore IDE and editor files
 .vscode/

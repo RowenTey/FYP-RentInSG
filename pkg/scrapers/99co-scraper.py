@@ -63,7 +63,7 @@ class NinetyNineCoScraper(AbstractPropertyScraper):
             if not price:
                 price_p = self.soup.find(
                     "p",
-                    class_="Heading_heading3__vJ885 Overview_text__TpBFy Overview_text__extra_bold__IdfcW Overview_text__lg__Hgcal Heading_baseColor__xWzRr",
+                    class_="Heading_heading3__vJ885 Overview_text__TpBFy Overview_text__extra_bold__IdfcW Overview_text__lg__Hgcal Heading_baseColor__xWzRr",  # noqa: E501
                 )
                 price = price_p.text.strip() if price_p else None
 

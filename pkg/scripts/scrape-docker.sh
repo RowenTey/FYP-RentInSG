@@ -44,3 +44,16 @@ echo "Running the specific Docker container..."
 run_container $container_name
 
 echo "Done"
+
+# Specify the directory path
+target_directory="/home/ubuntu/FYP-RentInSG/"
+
+# Change to the specified directory
+cd "$target_directory" || { echo "Failed to change to directory: $target_directory"; exit 1; }
+
+log_directory="$target_directory/pkg/logs/scraper"
+log_prefix="propnex-scraper"
+
+ech0 "Removing old log files that are more than 7 days old..."
+# Remove old log files that are more than 7 days old
+find "$log_directory" -name "${log_prefix}_*.log" -mtime +7 -exec rm {} \;

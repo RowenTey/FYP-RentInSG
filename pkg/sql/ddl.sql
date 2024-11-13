@@ -48,7 +48,7 @@ CREATE TABLE fyp_rent_in_sg.mall_info (
 );
 
 CREATE TABLE fyp_rent_in_sg.property_listing (
-    listing_id PRIMARY KEY VARCHAR NOT NULL,
+    listing_id VARCHAR PRIMARY KEY NOT NULL,
     property_name VARCHAR NOT NULL,
     district VARCHAR NOT NULL,
     price INT NOT NULL,

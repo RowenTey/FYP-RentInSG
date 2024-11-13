@@ -1,3 +1,20 @@
+from utils.read_df_from_s3 import read_df_from_s3
+from utils.parse_geojson import get_district
+from utils.notify import send_message
+from utils.motherduckdb_connector import MotherDuckDBConnector, connect_to_motherduckdb
+from utils.location_constants import *
+from utils.find_closest import find_nearest
+from utils.coordinates import fetch_coordinates
+from transformers.db_constants import *
+from shapely import wkt
+import pandas as pd
+import geopandas as gpd
+import boto3
+from typing import Tuple
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
+import logging
 import argparse
 import asyncio
 import os
@@ -6,31 +23,8 @@ import sys
 sys.path.append(os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../")))
 
-import logging
-import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
-from typing import Tuple
 
-import boto3
-import geopandas as gpd
-import pandas as pd
-from shapely import wkt
-from transformers.db_constants import *
-from utils.coordinates import fetch_coordinates
-from utils.find_closest import find_nearest
-from utils.location_constants import *
-from utils.motherduckdb_connector import MotherDuckDBConnector, connect_to_motherduckdb
-from utils.notify import send_message
-from utils.parse_geojson import get_district
-from utils.read_df_from_s3 import read_df_from_s3
-
-"""
-IMplement the following:
-- transaction management
-"""
-
-# Global vars to store 1 time info -> prevent multiple fetches
+# Global vars to store cache info -> prevent multiple fetches
 MRT_INFO, HAWKER_INFO, SUPERMARKET_INFO, PRIMARY_SCHOOL_INFO, MALL_INFO = (
     None,
     None,
@@ -39,8 +33,19 @@ MRT_INFO, HAWKER_INFO, SUPERMARKET_INFO, PRIMARY_SCHOOL_INFO, MALL_INFO = (
     None,
 )
 
+REVERSE_DISTRICTS = {v: k for k, v in DISTRICTS.items()}
+COL_MAPPER = {
+    "price/sqft": "price_per_sqft",
+    "distance_to_nearest_mrt": "distance_to_mrt_in_m",
+    "distance_to_nearest_hawker": "distance_to_hawker_in_m",
+    "distance_to_nearest_sch": "distance_to_sch_in_m",
+    "distance_to_nearest_supermarket": "distance_to_supermarket_in_m",
+    "distance_to_nearest_mall": "distance_to_mall_in_m",
+}
 
-def update_coord_w_building_name(df, building_map) -> Tuple[pd.DataFrame, dict]:
+
+def update_coord_w_building_name(
+        df, building_map) -> Tuple[pd.DataFrame, dict]:
     # Locate rows with null lat and long
     df_null_coords = df[(df["latitude"].isnull()) & (df["longitude"].isnull())]
     building_names = df_null_coords["building_name"].unique()
@@ -160,7 +165,10 @@ def update_hawker(db: MotherDuckDBConnector, df):
 
     HAWKER_INFO = fetch_hawker_info(db) if HAWKER_INFO is None else HAWKER_INFO
     df_null_hawker = find_nearest(
-        df_null_hawker, HAWKER_INFO, "nearest_hawker", "distance_to_nearest_hawker")
+        df_null_hawker,
+        HAWKER_INFO,
+        "nearest_hawker",
+        "distance_to_nearest_hawker")
     df.update(df_null_hawker)
 
     return df
@@ -190,7 +198,10 @@ def update_primary_school(db: MotherDuckDBConnector, df):
     PRIMARY_SCHOOL_INFO = fetch_primary_school_info(
         db) if PRIMARY_SCHOOL_INFO is None else PRIMARY_SCHOOL_INFO
     df_null_sch = find_nearest(
-        df_null_sch, PRIMARY_SCHOOL_INFO, "nearest_sch", "distance_to_nearest_sch")
+        df_null_sch,
+        PRIMARY_SCHOOL_INFO,
+        "nearest_sch",
+        "distance_to_nearest_sch")
     df.update(df_null_sch)
 
     return df
@@ -280,7 +291,8 @@ def update_room_rental_properties(df):
     # Assume 1 bathroom for room rental
     df.loc[indexes, "bathroom"] = 1
     logging.debug(
-        df.loc[indexes, ["property_name", "bedroom", "bathroom", "is_whole_unit"]])
+        df.loc
+        [indexes, ["property_name", "bedroom", "bathroom", "is_whole_unit"]])
 
     indexes = df.loc[(df["property_name"].str.contains(
         "Studio", case=False))].index
@@ -334,9 +346,9 @@ def transform_address(df):
             "For Rent", case=False)].index
         df.loc[indexes, "address"] = df.loc[indexes, "building_name"]
         df.loc[indexes, ["address", "property_name", "building_name"]]
-    except AttributeError as e:
+    except AttributeError:
         # No address on this day
-        logging.error(f"No address on this day...")
+        logging.error("No address on this day...")
     return df
 
 
@@ -360,8 +372,9 @@ def drop_duplicates(df, geometry_df: gpd.GeoDataFrame) -> pd.DataFrame:
 def drop_null_coords(df) -> pd.DataFrame:
     indexes = df.loc[(df["latitude"].isnull()) |
                      (df["longitude"].isnull())].index
-    logging.info("Length of null coordinates: " +
-                 str(len(df[df["latitude"].isnull() | df["longitude"].isnull()])))
+    logging.info(
+        "Length of null coordinates: " +
+        str(len(df[df["latitude"].isnull() | df["longitude"].isnull()])))
     df.drop(indexes, inplace=True)
     return df
 
@@ -422,7 +435,7 @@ def transform_numerical_values(df) -> pd.DataFrame:
             extract_num_price).str.replace(",", "").astype(int)
         df["bedroom"] = df["bedroom"].apply(extract_num_bedroom).astype(int)
         df["bathroom"] = df["bathroom"].apply(
-            extract_num).fillna("0").astype(int)
+            extract_num).fillna("1").astype(int)
         df["dimensions"] = df["dimensions"].apply(
             extract_num).str.replace(",", "").astype(int)
         df["built_year"] = df["built_year"].fillna(9999).astype(int)
@@ -461,22 +474,16 @@ def insert_df(db: MotherDuckDBConnector, df, debug: bool = False) -> None:
         raise e
 
 
-def change_data_capture(df, db: MotherDuckDBConnector, debug: bool = False) -> None:
+def change_data_capture(df, db: MotherDuckDBConnector,
+                        debug: bool = False) -> None:
     """
     changed:
     1. insert to rental price history
     2. update old one (fingerprint and last_updated)
     """
-    changed = df[(df["fingerprint"] != df["fingerprint_old"]) & (df["_merge"] == "both")][
-        [
-            "listing_id",
-            "fingerprint",
-            "scraped_on",
-            "fingerprint_old",
-            "last_updated_old",
-            "_merge",
-        ]
-    ]
+    changed = df[(df["fingerprint"] != df["fingerprint_old"]) &
+                 (df["_merge"] == "both")][["listing_id", "fingerprint",
+                                            "scraped_on", "fingerprint_old", "last_updated_old", "_merge",]]
     logging.info(f"Changed: \n{changed}\n")
 
     # Change data capture
@@ -603,7 +610,7 @@ def delete_s3_file(bucket_name, filename):
     s3.delete_object(Bucket=bucket_name, Key=filename)
 
 
-if __name__ == "__main__":
+def run():
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--debug", action="store_true",
                         help="Enable debug mode")
@@ -618,18 +625,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s:%(name)s:%(filename)s-%(lineno)s [%(levelname)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-    REVERSE_DISTRICTS = {v: k for k, v in DISTRICTS.items()}
-    COL_MAPPER = {
-        "price/sqft": "price_per_sqft",
-        "distance_to_nearest_mrt": "distance_to_mrt_in_m",
-        "distance_to_nearest_hawker": "distance_to_hawker_in_m",
-        "distance_to_nearest_sch": "distance_to_sch_in_m",
-        "distance_to_nearest_supermarket": "distance_to_supermarket_in_m",
-        "distance_to_nearest_mall": "distance_to_mall_in_m",
-    }
+        datefmt="%Y-%m-%d %H:%M:%S",)
 
     BUCKET_NAME = os.getenv("S3_BUCKET")
     PREFIX = "rental_prices/ninety_nine/"
@@ -644,7 +640,8 @@ if __name__ == "__main__":
         today = datetime.now().strftime("%Y-%m-%d")
         prev_date = LAST_TRANSFORMED_DATE
         cur_date = LAST_TRANSFORMED_DATE
-        for filename in get_s3_file_names(bucket_name=BUCKET_NAME, prefix=PREFIX):
+        for filename in get_s3_file_names(
+                bucket_name=BUCKET_NAME, prefix=PREFIX):
             file_date = filename.split("/")[-1].split(".")[0]
             logging.info(f"Processing {file_date}...")
             if LAST_TRANSFORMED_DATE < file_date <= today:
@@ -674,8 +671,10 @@ if __name__ == "__main__":
         traceback.print_exc()
 
         # Call the main function
-        asyncio.run(send_message("99.co transformer",
-                                 f"Transformer failed: {e.__class__.__name__} - {e}"))
+        asyncio.run(
+            send_message(
+                "99.co transformer",
+                f"Transformer failed: {e.__class__.__name__} - {e}"))
 
         if prev_date:
             logging.info(f"Reverting to previous date: {prev_date}")
@@ -683,3 +682,7 @@ if __name__ == "__main__":
                 file.write(prev_date)
     finally:
         db.close()
+
+
+if __name__ == "__main__":
+    run()

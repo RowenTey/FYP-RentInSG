@@ -23,13 +23,13 @@
 - Connecting to EC2 instance
 
   ```bash
-  ssh -i "secrets/AWS.pem" ubuntu@13.250.51.77
+  ssh -i "secrets/AWS.pem" ubuntu@ec2-13-250-51-77.ap-southeast-1.compute.amazonaws.com
   ```
 
 - Transferring files
 
   ```bash
-  sftp -i "secrets/AWS.pem" ubuntu@13.250.51.77
+  sftp -i "secrets/AWS.pem" ubuntu@ec2-13-250-51-77.ap-southeast-1.compute.amazonaws.com
   ```
 
 - Changing Permissions
@@ -49,3 +49,18 @@
   ```bash
   kill <process-id>
   ```
+
+- Inspect Docker image
+
+  ```bash
+  docker run -it --entrypoint=/bin/bash <image-name> -i
+  ```
+
+### View CRON Jobs Log
+
+You can view them at `/var/log/syslog`.
+
+### Docker _"exec: required file not found"_ error
+
+Change the line ending format from CRLF (Windows) to LF (Linux).  
+Reference: https://stackoverflow.com/questions/38905135/why-wont-my-docker-entrypoint-sh-execute

@@ -19,6 +19,31 @@ logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
 
 class PropnexScraper(AbstractPropertyScraper):
+    COLUMNS = [
+        "property_name",
+        "listing_id",
+        "district",
+        "price",
+        "bedroom",
+        "bathroom",
+        "dimensions",
+        "address",
+        "latitude",
+        "longitude",
+        "price/sqft",
+        "floor_level",
+        "furnishing",
+        "facing",
+        "built_year",
+        "tenure",
+        "property_type",
+        "nearest_mrt",
+        "distance_to_nearest_mrt",
+        "url",
+        "facilities",
+        "is_whole_unit",
+    ]
+
     def __init__(
         self,
         header="https://www.propnex.com",
@@ -30,7 +55,7 @@ class PropnexScraper(AbstractPropertyScraper):
         self.pages_to_fetch = 15
         self.properties_per_page = 200
         self.pagination_element = "div.listingPagination"
-        self.rental_prices_dir = f"./pkg/rental_prices/propnex/"
+        self.rental_prices_dir = "./pkg/rental_prices/propnex/"
 
         self.soup = None
         self.output = {}
@@ -54,29 +79,31 @@ class PropnexScraper(AbstractPropertyScraper):
     def fetch_html(self, url, has_pages):
         try:
             for trial in range(1, 21):
-                logging.info("Loading " + url)
+                self.monitor_cpu()
 
-                # Make request
+                # Set up retry logic
+                wait = WebDriverWait(self.driver, 10)
+                logging.info("Loading " + url)
                 time.sleep(random.randint(1, 5))
                 wait = WebDriverWait(self.driver, 20)
                 self.driver.get(url)
 
                 # Wait for page to load
                 wait.until(EC.presence_of_element_located(
-                    (By.TAG_NAME, "body")))
+                    (By.TAG_NAME, 'body')
+                ))
 
                 # Get the page source
-                html_content = self.driver.page_source
-                logging.info("=" * 75 + "\n")
+                self.html_content = self.driver.page_source
+                logging.info("=" * 75)
 
-                soup = BeautifulSoup(html_content, "html.parser")
+                soup = BeautifulSoup(self.html_content, "html.parser")
 
                 if "captcha" in soup.text:
                     self.handle_retry("CAPTCHA", trial)
                     continue
 
                 if has_pages and not soup.select_one(self.pagination_element):
-                    logging.info(self.html_content[:200])
                     self.handle_retry("No pages", trial)
                     continue
 
@@ -148,10 +175,10 @@ class PropnexScraper(AbstractPropertyScraper):
 
     def get_more_details(self):
         try:
-            property_boxes = self.soup.find_all(
+            property_box = self.soup.find_all(
                 "div", class_="property-list-box")
-            not_included = set(["Property Group", "Listing Type", "District"])
-            for box in property_boxes:
+            not_included = set(["Property Group", "District"])
+            for box in property_box:
                 labels = box.find_all("b")
                 values = box.find_all("span")
 
@@ -165,6 +192,10 @@ class PropnexScraper(AbstractPropertyScraper):
                         continue
                     elif label == "Street Name":
                         self.output["address"] = val.get_text(strip=True)
+                        continue
+                    elif label == "Listing Type":
+                        self.output["is_whole_unit"] = True if \
+                            val.get_text(strip=True) != "ROOM" else False
                         continue
                     elif label == "Floor":
                         self.output["floor_level"] = val.get_text(strip=True)
@@ -272,7 +303,12 @@ class PropnexScraper(AbstractPropertyScraper):
                 continue
 
             soup = self.fetch_html(
-                self.header + self.key + self.query + "&page_num=" + str(page), True)
+                self.header +
+                self.key +
+                self.query +
+                "&page_num=" +
+                str(page),
+                True)
             if not soup:
                 logging.warning(f"Error fetching page {page}, skipping...")
                 continue
@@ -286,9 +322,9 @@ class PropnexScraper(AbstractPropertyScraper):
         # Scrape rental info for each property
         rental_infos = []
         logging.info(
-            "A total of " + str(min(self.properties_per_page,
-                                len(self.props))) + " properties will be scraped."
-        )
+            "A total of " +
+            str(min(self.properties_per_page, len(self.props))) +
+            " properties will be scraped.")
 
         for i, prop in enumerate(self.props):
             # only scrape self.properties_per_page per district
@@ -300,7 +336,8 @@ class PropnexScraper(AbstractPropertyScraper):
                 rental_infos.append(rental_info)
 
             logging.info(
-                str(i + 1) + "/" + str(min(self.properties_per_page, len(self.props))) + " done!")
+                str(i + 1) + "/" +
+                str(min(self.properties_per_page, len(self.props))) + " done!")
 
         self.create_dataframe(rental_infos, district)
 
@@ -348,7 +385,7 @@ class PropnexScraper(AbstractPropertyScraper):
         self.query = "?sortBy=newest&listingType=RENT&condoPropertyType=CONDO%2CAPT&district={district}"
 
     def __del__(self):
-        self.driver.close()
+        self.driver.quit()
 
 
 if __name__ == "__main__":
@@ -364,8 +401,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s : %(filename)s-%(lineno)s [%(levelname)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
+        datefmt="%H:%M:%S",)
 
     try:
         start = time.time()
