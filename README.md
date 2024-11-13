@@ -17,12 +17,3 @@
 | ------------- | -------- | -------- | ------------------ |
 | 99.co scraper | 2am      | 10am     | Takes ~4hrs to run |
 | s3_uploader   | 6am      | 2pm      |                    |
-
-### View CRON Jobs Log
-
-You can view them at `/var/log/syslog`.
-
-### Docker _"exec: required file not found"_ error
-
-Change the line ending format from CRLF (Windows) to LF (Linux).  
-Reference: https://stackoverflow.com/questions/38905135/why-wont-my-docker-entrypoint-sh-execute

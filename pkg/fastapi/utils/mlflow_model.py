@@ -65,7 +65,6 @@ class MLflowModel:
         self.db = db
         self.geocoder = Nominatim(user_agent="sg_rental_price_dashboard")
 
-        # self.explainer = shap.TreeExplainer(self.model)
         self.explainer = shap.TreeExplainer(self.model)
         # Get the feature names after transformation
         self.transformed_feature_names = self.column_transformer.get_feature_names_out()
@@ -146,7 +145,7 @@ class MLflowModel:
         explanation = "The rental price predicted is based on several factors. Here are the top 5 most influential features:\n\n"  # noqa: E501
         for feature, value in zip(reversed(top_features), reversed(top_values)):
             # Map back to original feature if possible
-            logging.info(feature, feature_names)
+            print(feature, feature_names)
             original_feature = self.map_transformed_feature_to_original(
                 feature, feature_names)
 

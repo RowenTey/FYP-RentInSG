@@ -28,7 +28,6 @@ dag = DAG(
     'propnex_etl',
     default_args=default_args,
     catchup=False,
-    catchup=False,
     description='A DAG to scrape data from Propnex and upload to S3',
     schedule_interval='0 7 * * *',
 )
@@ -158,6 +157,7 @@ docker_task = DockerOperator(
         Mount(source=DOCKER_TARGET_VOLUME, target=DOCKER_VOLUME_DIR, type='volume'),
     ],
     # Specify the Docker daemon socket
+    docker_url='unix://var/run/docker.sock',
     docker_url='unix://var/run/docker.sock',
     retrieve_output=True,
     tty=True,
