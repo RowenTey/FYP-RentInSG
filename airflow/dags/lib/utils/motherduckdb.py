@@ -3,7 +3,6 @@ import duckdb
 from pandas import DataFrame, concat
 
 
-
 class MotherDuckDBConnector:
     def __init__(self, conn: duckdb.DuckDBPyConnection):
         self.connection: duckdb.DuckDBPyConnection = conn

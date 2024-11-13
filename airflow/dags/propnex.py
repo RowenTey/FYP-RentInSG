@@ -57,7 +57,6 @@ def fetch_csv_from_volume(**kwargs):
     """
     from docker import from_env
 
-
     client = from_env()
     container = client.containers.run(
         'alpine',
@@ -66,24 +65,19 @@ def fetch_csv_from_volume(**kwargs):
         remove=True
     )
 
-
     csv_content = container.decode('utf-8')
     return csv_content
-
 
 
 def convert_csv_to_df(**kwargs):
     import pandas as pd
     from io import StringIO
 
-
     ti = kwargs['ti']
     csv_content = ti.xcom_pull(task_ids='fetch_csv')
 
-
     df = pd.read_csv(StringIO(csv_content))
     return df
-
 
 
 def upload_to_s3(s3_bucket, s3_key, **kwargs):
@@ -118,13 +112,10 @@ def upload_to_s3(s3_bucket, s3_key, **kwargs):
     from lib.utils.parquet import parquet
     from airflow.providers.amazon.aws.operators.s3 import S3Hook
 
-
     ti = kwargs['ti']
     df = ti.xcom_pull(task_ids='convert_csv_to_df')
 
-
     parquet_bytes = parquet(df)
-
 
     hook = S3Hook(aws_conn_id='aws_conn')
     hook.load_file_obj(parquet_bytes, s3_key, bucket_name=s3_bucket, replace=True)
