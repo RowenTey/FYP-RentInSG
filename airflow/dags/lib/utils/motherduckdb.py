@@ -3,12 +3,17 @@ import duckdb
 from pandas import DataFrame, concat
 
 
+
 class MotherDuckDBConnector:
     def __init__(self, conn: duckdb.DuckDBPyConnection):
         self.connection: duckdb.DuckDBPyConnection = conn
         self.logger = logging.getLogger(MotherDuckDBConnector.__name__)
 
-    def create_s3_secret(self, aws_access_key_id: str, aws_secret_access_key: str, aws_region: str):
+    def create_s3_secret(
+            self,
+            aws_access_key_id: str,
+            aws_secret_access_key: str,
+            aws_region: str):
         # Create a secret to set AWS credentials
         self.connection.sql(
             f"CREATE OR REPLACE SECRET (TYPE S3, S3_ACCESS_KEY_ID '{aws_access_key_id}', S3_SECRET_ACCESS_KEY '{aws_secret_access_key}', S3_REGION '{aws_region}')"  # noqa: E501
