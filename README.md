@@ -18,44 +18,6 @@
 | 99.co scraper | 2am      | 10am     | Takes ~4hrs to run |
 | s3_uploader   | 6am      | 2pm      |                    |
 
-## Helpful Code Snippets
-
-- Connecting to EC2 instance
-
-  ```bash
-  ssh -i "secrets/AWS.pem" ubuntu@ec2-13-250-51-77.ap-southeast-1.compute.amazonaws.com
-  ```
-
-- Transferring files
-
-  ```bash
-  sftp -i "secrets/AWS.pem" ubuntu@ec2-13-250-51-77.ap-southeast-1.compute.amazonaws.com
-  ```
-
-- Changing Permissions
-
-  ```bash
-  chmod 775 /path/to/directory
-  ```
-
-- List processes
-
-  ```bash
-  ps aux
-  ```
-
-- Kill process
-
-  ```bash
-  kill <process-id>
-  ```
-
-- Inspect Docker image
-
-  ```bash
-  docker run -it --entrypoint=/bin/bash <image-name> -i
-  ```
-
 ### View CRON Jobs Log
 
 You can view them at `/var/log/syslog`.
