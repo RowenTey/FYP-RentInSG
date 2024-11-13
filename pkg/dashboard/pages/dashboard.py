@@ -31,7 +31,8 @@ df = load_data()
 st.sidebar.header("Filter Properties")
 
 # Price Filter
-price_min, price_max = st.sidebar.slider("Price Range ($)", min_value=int(df['price'].min()), max_value=int(df['price'].max()), value=(int(df['price'].min()), int(df['price'].max())))
+price_min, price_max = st.sidebar.slider("Price Range ($)", min_value=int(df['price'].min()), max_value=int(
+    df['price'].max()), value=(int(df['price'].min()), int(df['price'].max())))
 df = df[(df['price'] >= price_min) & (df['price'] <= price_max)]
 
 # Bedroom Filter
@@ -109,10 +110,10 @@ with col2:
     avg_price = df.groupby('district')['price_per_sqft'].mean().reset_index()
     avg_price_sorted = avg_price.sort_values(by='price_per_sqft', ascending=False)
     fig_avg_price = px.bar(
-        avg_price_sorted, 
-        x='district', 
-        y='price_per_sqft', 
-        color='price_per_sqft',  
+        avg_price_sorted,
+        x='district',
+        y='price_per_sqft',
+        color='price_per_sqft',
         color_continuous_scale='sunset'
     )
     fig_avg_price.update_layout(xaxis_title='District', yaxis_title='Price')
@@ -134,14 +135,15 @@ with col1:
     st.subheader("Price Correlation Heatmap")
     corr_matrix = df[['price', 'bedroom', 'dimensions']].corr()
     fig_corr = ff.create_annotated_heatmap(z=corr_matrix.to_numpy(),
-                                        x=corr_matrix.columns.tolist(),
-                                        y=corr_matrix.columns.tolist(),
-                                        colorscale='sunset')
+                                           x=corr_matrix.columns.tolist(),
+                                           y=corr_matrix.columns.tolist(),
+                                           colorscale='sunset')
     st.plotly_chart(fig_corr, use_container_width=True)
 with col2:
     # Scatter Plot of Price vs. Property Size
     st.subheader("Price vs. Property Size")
-    fig_price_size = px.scatter(df, x='dimensions', y='price', trendline='ols', color='price', color_continuous_scale='sunset')
+    fig_price_size = px.scatter(df, x='dimensions', y='price', trendline='ols',
+                                color='price', color_continuous_scale='sunset')
     fig_price_size.update_layout(xaxis_title='Size (sqft)', yaxis_title='Price')
     st.plotly_chart(fig_price_size, use_container_width=True)
 
@@ -149,10 +151,10 @@ with col2:
 st.subheader("Rental Property Locations with Price")
 fig_scatter_map = px.scatter_mapbox(
     df,
-    lat='latitude',    
+    lat='latitude',
     lon='longitude',
     color='price',
-    size='price',      
+    size='price',
     hover_name='property_type',
     hover_data=['price', 'price_per_sqft', 'bedroom', 'dimensions'],
     color_continuous_scale='sunset',
