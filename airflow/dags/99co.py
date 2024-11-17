@@ -2,6 +2,7 @@ import os
 from airflow import DAG
 from airflow.datasets import Dataset
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.providers.telegram.operators.telegram import TelegramOperator
 from airflow.operators.python import PythonOperator
 from datetime import datetime
 from docker.types import Mount
@@ -17,6 +18,7 @@ DUCKDB_CONN_ID = "duckdb_conn"
 LOCATION_INFO_TB_NAME = "plan_area_mapping"
 TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
 TELEGRAM_CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
+TELEGRAM_CONN_ID = "telegram_conn"
 INSERT_TBL = "property_listing"
 CDC_TBL = "rental_price_history"
 DATASET_URI = "duckdb://fyp_rent_in_sg/property_listing/"
@@ -35,7 +37,8 @@ default_args = {
     "start_date": datetime(2024, 7, 14),
     "email": ["kaiseong02@gmail.com"],
     "email_on_failure": True,
-    "retries": 1
+    # "retries": 1,
+    # "retry_delay": datetime.timedelta(minutes=30),
 }
 
 dag = DAG(
@@ -91,10 +94,10 @@ def convert_csv_to_df(upstream_task, **kwargs):
     csv_content = ti.xcom_pull(task_ids=upstream_task)
 
     df = pd.read_csv(StringIO(csv_content))
-    return df
+    return (df, len(df))
 
 
-def upload_to_s3(upstream_task, s3_bucket, s3_key, **kwargs):
+def upload_to_s3(upstream_task, aws_conn_id, s3_bucket, s3_key, **kwargs):
     """
     Uploads a local file to an S3 bucket.
 
@@ -123,11 +126,11 @@ def upload_to_s3(upstream_task, s3_bucket, s3_key, **kwargs):
     from airflow.providers.amazon.aws.operators.s3 import S3Hook
 
     ti = kwargs['ti']
-    df = ti.xcom_pull(task_ids=upstream_task)
+    df = ti.xcom_pull(task_ids=upstream_task)[0]
 
     parquet_bytes = parquet(df)
 
-    hook = S3Hook(aws_conn_id='aws_conn')
+    hook = S3Hook(aws_conn_id=aws_conn_id)
     hook.load_file_obj(parquet_bytes, s3_key, bucket_name=s3_bucket, replace=True)
 
 
@@ -149,7 +152,7 @@ def clean_and_transform(upstream_tasks: list[str], date_str: str, **kwargs):
     from lib.transformers.ninetynineco import transform
 
     ti = kwargs["ti"]
-    df = ti.xcom_pull(task_ids=upstream_tasks[0])
+    df = ti.xcom_pull(task_ids=upstream_tasks[0])[0]
 
     augment_data = {task_id .replace("fetch_augmented_info_", "") .replace(
         "fetch_location_info", "plan_area_mapping"): ti.xcom_pull(task_ids=task_id) for task_id in upstream_tasks[1:]}
@@ -217,11 +220,20 @@ convert_csv_task = PythonOperator(
     dag=dag,
 )
 
+send_telegram_message_task = TelegramOperator(
+    task_id="send_telegram_message",
+    telegram_conn_id=TELEGRAM_CONN_ID,
+    chat_id=TELEGRAM_CHAT_ID,
+    text="99co scraper scraped {{ ti.xcom_pull(task_ids='convert_csv_to_df')[1] }} today.",
+    dag=dag,
+)
+
 upload_to_s3_task = PythonOperator(
     task_id='upload_to_s3',
     python_callable=upload_to_s3,
     op_kwargs={
         'upstream_task': 'convert_csv_to_df',
+        'aws_conn_id': AWS_CONN_ID,
         's3_bucket': S3_BUCKET,
         's3_key': S3_KEY
     },
@@ -270,7 +282,7 @@ push_to_duckdb_task = PythonOperator(
     python_callable=push_to_duckdb,
     op_kwargs={
         "duckdb_conn_id": DUCKDB_CONN_ID,
-        "upstream_task": "clean_and_transform",
+        "upstream_task": clean_and_transform_task.task_id,
         "insert_tbl": INSERT_TBL,
         "cdc_tbl": CDC_TBL
     },
@@ -285,6 +297,7 @@ fetch_csv_task >> convert_csv_task
 
 fetch_augmented_info_task >> clean_and_transform_task
 
+convert_csv_task >> send_telegram_message_task
 convert_csv_task >> clean_and_transform_task
 convert_csv_task >> upload_to_s3_task
 
