@@ -18,6 +18,7 @@ apache-airflow-providers-imap==3.6.1
 apache-airflow-providers-postgres==5.11.2
 apache-airflow-providers-smtp==1.7.1
 apache-airflow-providers-sqlite==3.8.1
+apache-airflow-providers-telegram==4.6.0
 apispec==6.6.1
 APScheduler==3.6.3
 argcomplete==3.4.0
@@ -56,7 +57,7 @@ dill==0.3.8
 dnspython==2.6.1
 docker==7.1.0
 docutils==0.21.2
-duckdb==1.0.0
+duckdb==0.10.3
 duckdb_engine==0.13.0
 email_validator==2.2.0
 entrypoints==0.4
@@ -136,6 +137,7 @@ opentelemetry-exporter-otlp-proto-http==1.25.0
 opentelemetry-proto==1.25.0
 opentelemetry-sdk==1.25.0
 opentelemetry-semantic-conventions==0.46b0
+optuna==3.6.1
 ordered-set==4.1.0
 packaging==23.2
 pandas==2.2.2

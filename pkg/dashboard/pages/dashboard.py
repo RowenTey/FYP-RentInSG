@@ -19,6 +19,7 @@ def load_data():
     df = (st.session_state["listings_df"]).copy()
     df = df[df['price'] >= 100]
     df['scraped_on'] = pd.to_datetime(df['scraped_on'])
+    df = df[df['property_type'].isna() == False]
     df = remove_outliers(df, 'price')
     df = remove_outliers(df, 'price_per_sqft')
     df = remove_outliers(df, 'dimensions')

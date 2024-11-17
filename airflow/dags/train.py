@@ -9,6 +9,7 @@ from mlflow_provider.operators.registry import (
 )
 from datetime import datetime
 from pandas import DataFrame
+import logging
 import os
 
 DATASET_URI = "duckdb://fyp_rent_in_sg/property_listing/"
@@ -16,9 +17,10 @@ ARTIFACT_BUCKET = os.environ["S3_BUCKET"]
 TABLE_NAME = "property_listing"
 DUCKDB_CONN_ID = "duckdb_conn"
 MLFLOW_CONN_ID = "mlflow_conn"
-MLFLOW_TRACKING_URI = "http://mlflow-server:5000"
+MLFLOW_TRACKING_URI = "http://mlflow:5000"
 EXPERIMENT_NAME = "rent_in_sg"
 REGISTERED_MODEL_NAME = "rent_in_sg_reg_model"
+RETRAINING_THRESHOLD = 10_000
 
 property_listing_dataset = Dataset(DATASET_URI)
 
@@ -59,16 +61,13 @@ def check_and_trigger_retraining(duckdb_conn_id: str, dataset_uri: str, **contex
 
     ti = context['ti']
     previous_size = int(Variable.get("previous_property_listing_dataset_size", default_var=1))
-    # previous_size = ti.xcom_pull(task_ids='check_and_trigger_retraining', key='previous_size', default=1)
     print(f"Current size: {current_size}; Previous size: {previous_size}")
 
-    # if current_size - previous_size <= 5000:
+    # if current_size - previous_size <= RETRAINING_THRESHOLD:
     #     Variable.set("previous_property_listing_dataset_size", current_size)
-    #     # ti.xcom_push(task_ids='check_and_trigger_retraining', key='previous_size', value=current_size)
     #     return "retraining_not_triggered"
 
-    # Variable.set("previous_property_listing_dataset_size", current_size)
-    # ti.xcom_push(task_ids='check_and_trigger_retraining', key='previous_size', value=current_size)
+    Variable.set("previous_property_listing_dataset_size", current_size)
     return "retraining_triggered"
 
 
@@ -168,7 +167,6 @@ def perform_eda(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
         "distance_to_mall_in_m"]
     categorical_columns = ["property_type", "furnishing", "floor_level", "district_id", "tenure", "facing"]
 
-    # mlflow.set_tracking_uri("http://mlflow-server:5000")
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     with mlflow.start_run(
             experiment_id=experiment_id,
@@ -213,7 +211,7 @@ def prepare_data(upstream_task: str, **kwargs):
 
     # drop columns not in numerical and categorical columns
     df = df.drop(columns=[col for col in df.columns if col not in numerical_columns + categorical_columns])
-    print(df.columns)
+    logging.info(df.columns)
 
     rental_price = df['price']
     X = df.drop(['price'], axis=1)
@@ -240,9 +238,10 @@ def train_and_evaluate_model(
         mlflow_tracking_uri: str,
         train_data: DataFrame,
         val_data: DataFrame):
+    import gc
     import mlflow
     import numpy as np
-    from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
     from sklearn.preprocessing import StandardScaler, OneHotEncoder
     from sklearn.compose import ColumnTransformer
     from sklearn.pipeline import Pipeline
@@ -286,27 +285,26 @@ def train_and_evaluate_model(
     ) as run:
         pipeline.fit(X_train, y_train)
         y_pred = pipeline.predict(X_val)
-        signature = mlflow.models.infer_signature(X_val, y_pred)
 
         mae = mean_absolute_error(y_val, y_pred).round(2)
         rmse = np.sqrt(mean_squared_error(y_val, y_pred)).round(2)
-        evs = explained_variance_score(y_val, y_pred).round(2)
+        r2 = r2_score(y_val, y_pred).round(4)
 
         mlflow.log_metric("mae", mae)
         mlflow.log_metric("rmse", rmse)
-        mlflow.log_metric("explained_variance_score", evs)
+        mlflow.log_metric("r2_score", r2)
 
-        mlflow.sklearn.log_model(pipeline, artifact_path=model_name, signature=signature)
         run_id = run.info.run_id
 
-    return (mae, rmse, evs, run_id)
+        gc.collect()
+
+    return (mae, rmse, r2, run_id)
 
 
 def train_models(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
     from sklearn.ensemble import (
         RandomForestRegressor,
         AdaBoostRegressor,
-        HistGradientBoostingRegressor
     )
     from sklearn.tree import DecisionTreeRegressor
     from sklearn.linear_model import (
@@ -321,64 +319,133 @@ def train_models(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
     ti = kwargs['ti']
     data = ti.xcom_pull(task_ids=upstream_task[0])
     experiment_id = ti.xcom_pull(task_ids=upstream_task[1])
-
     train_data, val_data, _ = data
 
     models = [
-        (LinearRegression(), "linear_regression"),
-        (Lasso(alpha=1.0), "lasso_regression"),
-        (Ridge(), "ridge_regression"),
+        # (LinearRegression(), "linear_regression"),
+        # (Lasso(), "lasso"),
+        # (Ridge(), "ridge"),
         (DecisionTreeRegressor(), "decision_tree"),
         (RandomForestRegressor(), "random_forest"),
         (AdaBoostRegressor(), "ada_boost"),
-        (HistGradientBoostingRegressor(), "hist_gradient_boosting"),
         (XGBRegressor(), "xgboost"),
         (CatBoostRegressor(), "catboost"),
         (LGBMRegressor(), "lightgbm"),
     ]
 
-    best_model = best_evs = best_run = None
-    best_rmse = float('inf')
+    best_model = best_run = None
+    best_r2 = float("-inf")
 
     for model_class, model_name in models:
-        mae, rmse, evs, run_id = train_and_evaluate_model(
+        mae, rmse, r2, run_id = train_and_evaluate_model(
             experiment_id, model_class, model_name, mlflow_tracking_uri, train_data, val_data)
-        print(f"Model: {model_name}, MAE: {mae}, RMSE: {rmse}, EVS: {evs}")
-        if rmse < best_rmse:
-            best_rmse = rmse
-            best_evs = evs
+        print(f"Model: {model_name}, MAE: {mae}, RMSE: {rmse}, r2: {r2}")
+        if r2 > best_r2:
+            best_r2 = r2
             best_run = run_id
             best_model = model_name
 
-    run_summary = (
-        "Best regression model for property listing price prediction is\n"
-        f"{best_model} with accuracy of {best_evs}."
-    ),
+    run_summary = "".join(
+        "Best regression model for property listing price prediction is "
+        f"{best_model} with accuracy of {best_r2}."
+    )
 
     return (best_model, best_run, run_summary)
 
 
+def create_objective(model_name: str, best_model: any, X_train, y_train):
+    def objective(trial):
+        import gc
+        from numpy import mean
+        from sklearn.model_selection import cross_val_score
+        from sklearn.metrics import mean_squared_error
+        from math import sqrt
+        if model_name == 'random_forest':
+            params = {
+                'n_estimators': trial.suggest_int('n_estimators', 200, 2000, step=200),
+                'max_features': trial.suggest_categorical('max_features', ['log2', 'sqrt']),
+                'max_depth': trial.suggest_int('max_depth', 10, 110, step=10),
+                'min_samples_split': trial.suggest_int('min_samples_split', 2, 10, step=3),
+                'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 4, step=1),
+                'bootstrap': trial.suggest_categorical('bootstrap', [True, False])
+            }
+        elif model_name == 'catboost':
+            params = {
+                "iterations": trial.suggest_categorical("iterations", [1000]),
+                "learning_rate": trial.suggest_loguniform("learning_rate", 1e-3, 1),
+                "depth": trial.suggest_int("depth", 6, 10),
+                "subsample": trial.suggest_categorical("subsample", [0.05, 0.2, 0.4, 0.6, 0.8, 1.0]),
+                "colsample_bylevel": trial.suggest_categorical("colsample_bylevel", [0.05, 0.2, 0.4, 0.6, 0.8, 1.0]),
+                "min_data_in_leaf": trial.suggest_int("min_data_in_leaf", 20, 100, step=20)
+            }
+        elif model_name == 'decision_tree':
+            params = {
+                "max_depth": trial.suggest_categorical("max_depth", [3, 5, 7, 10, 15]),
+                "min_samples_split": trial.suggest_categorical("min_samples_split", [2, 5, 10, 20]),
+                "min_samples_leaf": trial.suggest_categorical("min_samples_leaf", [1, 3, 5, 10])
+            }
+        elif model_name == 'lasso_regression' or model_name == 'ridge_regression':
+            params = {
+                "alpha": trial.suggest_loguniform("alpha", 0.001, 10.0)
+            }
+        elif model_name == 'hgb':
+            params = {
+                "max_depth": trial.suggest_categorical("max_depth", [3, 5, 7, 10]),
+                "learning_rate": trial.suggest_loguniform("learning_rate", 0.01, 1.0),
+                "min_samples_leaf": trial.suggest_categorical("min_samples_leaf", [1, 3, 5, 10])
+            }
+        elif model_name == 'xgb':
+            params = {
+                "n_estimators": trial.suggest_categorical("n_estimators", [100, 200, 300, 400, 500]),
+                "max_depth": trial.suggest_int("max_depth", 3, 5),
+                "subsample": trial.suggest_categorical("subsample", [0.8, 0.9, 1.0]),
+                "colsample_bytree": trial.suggest_categorical("colsample_bytree", [0.8, 0.9, 1.0]),
+                "learning_rate": trial.suggest_loguniform("learning_rate", 0.01, 0.1),
+                "min_child_weight": trial.suggest_int("min_child_weight", 1, 3),
+                "gamma": trial.suggest_categorical("gamma", [0, 0.1, 0.2])
+            }
+        elif model_name == 'lgbm':
+            params = {
+                "max_depth": trial.suggest_categorical("max_depth", [3, 5, 7, 10]),
+                "learning_rate": trial.suggest_loguniform("learning_rate", 0.01, 1.0),
+                "n_estimators": trial.suggest_categorical("n_estimators", [50, 100, 200, 500]),
+                "min_child_samples": trial.suggest_int("min_child_samples", 5, 50, step=5)
+            }
+
+        model = best_model(**params)
+        scores = cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error')
+
+        # Convert scores to positive RMSE values
+        rmse_scores = [sqrt(-score) for score in scores]
+        print(f"Scores: {rmse_scores}")
+        avg_rmse = mean(rmse_scores)
+
+        # Clean up
+        gc.collect()
+
+        return avg_rmse
+
+    return objective
+
+
 def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
     import mlflow
+    import optuna
+    import pickle
+    import tempfile
+    from pathlib import Path
     from numpy import sqrt
-    from lib.constants.hyperparameters import HYPERPARAMETERS
-    from sklearn.model_selection import GridSearchCV
-    from sklearn.metrics import mean_squared_error
+    from optuna.samplers import TPESampler
     from sklearn.ensemble import (
         RandomForestRegressor,
         AdaBoostRegressor,
         HistGradientBoostingRegressor
     )
     from sklearn.tree import DecisionTreeRegressor
-    from sklearn.linear_model import (
-        LinearRegression,
-        Lasso,
-        Ridge
-    )
     from xgboost import XGBRegressor
     from catboost import CatBoostRegressor
     from lightgbm import LGBMRegressor
-    from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score, r2_score
     from sklearn.preprocessing import StandardScaler, OneHotEncoder
     from sklearn.compose import ColumnTransformer
 
@@ -397,9 +464,6 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
     y_test = test_data['price']
 
     models = {
-        "linear_regression": LinearRegression,
-        "lasso_regression": Lasso,
-        "ridge_regression": Ridge,
         "decision_tree": DecisionTreeRegressor,
         "random_forest": RandomForestRegressor,
         "ada_boost": AdaBoostRegressor,
@@ -435,50 +499,91 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
 
     run_id = None
     run_summary = ""
-    params_grid = HYPERPARAMETERS[model_name]
     best_model = models[model_name]
 
+    storage_url = "postgresql://airflow:airflow@postgres/optuna"
+
+    # Start the MLflow run
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     with mlflow.start_run(
         experiment_id=experiment_id,
         run_name="hyperparameter_tuning"
     ) as run:
-        model = best_model(random_state=42) if hasattr(best_model, "random_state") else best_model()
+        # Create an Optuna study
+        study = optuna.create_study(
+            direction="minimize",
+            sampler=TPESampler(),
+            load_if_exists=True,
+            storage=storage_url)
 
-        grid_search = GridSearchCV(model, params_grid, cv=5, scoring='r2', verbose=3, n_jobs=5)
-        grid_search.fit(X_train, y_train)
+        # Create the objective function with the specified model_name and best_model
+        objective = create_objective(model_name, best_model, X_train, y_train)
 
-        y_pred = grid_search.predict(X_val)
+        # Optimize the study
+        # study.optimize(objective, n_trials=15, n_jobs=1, gc_after_trial=True)
+        study.optimize(objective, n_trials=1, n_jobs=1, gc_after_trial=True)
+
+        # Get the best hyperparameters
+        best_params = study.best_params
+        print(f"Best hyperparameters: {best_params}")
+        print(f"Best value: {study.best_value}")
+
+        # Train the model with the best hyperparameters
+        best_model_instance = best_model(**best_params)
+        best_model_instance.fit(X_train, y_train)
+
+        # Predict on the validation set
+        y_pred = best_model_instance.predict(X_val)
+
+        # Infer signature for model logging
         signature = mlflow.models.infer_signature(X_val, y_pred)
 
         mae = mean_absolute_error(y_val, y_pred).round(2)
         rmse = sqrt(mean_squared_error(y_val, y_pred)).round(2)
         evs = explained_variance_score(y_val, y_pred).round(2)
+        r2 = r2_score(y_val, y_pred).round(2)
 
         # Log the results
-        mlflow.log_params(grid_search.best_params_)
-        mlflow.log_metric('r2', grid_search.best_score_)
+        mlflow.log_params(study.best_params)
 
-        mlflow.log_metric('val_mae', mae)
-        mlflow.log_metric('val_rmse', rmse)
-        mlflow.log_metric('val_explained_variance_score', evs)
+        mlflow.log_metric('ht_val_mae', mae)
+        mlflow.log_metric('ht_val_rmse', rmse)
+        mlflow.log_metric('ht_val_explained_variance_score', evs)
+        mlflow.log_metric('ht_val_r2_score', r2)
 
-        y_pred = grid_search.predict(X_test)
+        y_pred = best_model_instance.predict(X_test)
 
         mae = mean_absolute_error(y_test, y_pred).round(2)
         rmse = sqrt(mean_squared_error(y_test, y_pred)).round(2)
         evs = explained_variance_score(y_test, y_pred).round(2)
+        r2 = r2_score(y_test, y_pred).round(2)
 
-        mlflow.log_metric('test_mae', mae)
-        mlflow.log_metric('test_rmse', rmse)
-        mlflow.log_metric('test_explained_variance_score', evs)
+        mlflow.log_metric('ht_test_mae', mae)
+        mlflow.log_metric('ht_test_rmse', rmse)
+        mlflow.log_metric('ht_test_explained_variance_score', evs)
+        mlflow.log_metric('ht_test_r2_score', r2)
 
-        run_summary = f"Model {model_name} was tuned to an accuracy of {evs}."
+        run_summary = f"Model {model_name} was tuned to an accuracy of {r2}."
+        logging.info(run_summary)
 
-        mlflow.sklearn.log_model(grid_search.best_estimator_, artifact_path=model_name, signature=signature)
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir, "column_transformer.pkl")
+            path.write_bytes(pickle.dumps(column_transformer))
+            mlflow.log_artifact(local_path=path.absolute(), artifact_path="column_transformer")
+            logging.info(f"Logged artifact: {path.absolute()}")
+
+        if model_name == 'xgboost':
+            mlflow.xgboost.log_model(best_model_instance, artifact_path="model", signature=signature)
+        elif model_name == 'lightgbm':
+            mlflow.lightgbm.log_model(best_model_instance, artifact_path="model", signature=signature)
+        elif model_name == 'catboost':
+            mlflow.catboost.log_model(best_model_instance, artifact_path="model", signature=signature)
+        else:
+            mlflow.sklearn.log_model(best_model_instance, artifact_path="model", signature=signature)
+
         run_id = run.info.run_id
 
-    return (run_id, run_summary)
+    return (run_id, run_summary, model_name, r2)
 
 
 def check_if_model_already_registered(
@@ -618,14 +723,24 @@ create_model_version_task = CreateModelVersionOperator(
     mlflow_conn_id=MLFLOW_CONN_ID,
     source="s3://"
     + ARTIFACT_BUCKET
-    + "/mlflow/"
+    + "/mlflow"
     + f"/{EXPERIMENT_NAME}/"
-    + "{{ ti.xcom_pull(task_ids='train_models')[1] }}",
-    # + "/artifacts/"
-    # + "{{ ti.xcom_pull(task_ids='train_models')[0] }}"
-    run_id="{{ ti.xcom_pull(task_ids='train_models')[1] }}",
-    description="{{ ti.xcom_pull(task_ids='train_models')[2] }}",
-    trigger_rule="none_failed",
+    + "{{ ti.xcom_pull(task_ids='tune_model')[0] }}"
+    + "/artifacts/model",
+    run_id="{{ ti.xcom_pull(task_ids='tune_model')[0] }}",
+    description="{{ ti.xcom_pull(task_ids='tune_model')[1] }}",
+    tags=[
+        {"key": "model_name", "value": "{{ ti.xcom_pull(task_ids='tune_model')[2] }}"},
+        {"key": "r2_score", "value": "{{ ti.xcom_pull(task_ids='tune_model')[3] }}"},
+        {
+            "key": "column_transformer_source",
+            "value":
+                f"s3://{ARTIFACT_BUCKET}/mlflow/{EXPERIMENT_NAME}/" +
+                "{{ ti.xcom_pull(task_ids='tune_model')[0] }}" +
+                "/artifacts/column_transformer/column_transformer.pkl"
+        },
+    ],
+    trigger_rule="one_success",
 )
 
 transition_model_task = TransitionModelVersionStageOperator(

@@ -68,10 +68,10 @@ x-airflow-common:
     AIRFLOW__SMTP__SMTP_HOST: smtp-mail.outlook.com
     AIRFLOW__SMTP__SMTP_STARTTLS: True
     AIRFLOW__SMTP__SMTP_SSL: False
-    AIRFLOW__SMTP__SMTP_USER: airflow.fyp2024@hotmail.com
-    AIRFLOW__SMTP__SMTP_PASSWORD: JW+/Ra*e5WA$$z7F
+    AIRFLOW__SMTP__SMTP_USER: ${AIRFLOW_SMTP_USER}
+    AIRFLOW__SMTP__SMTP_PASSWORD: ${AIRFLOW_SMTP_PASSWORD}
     AIRFLOW__SMTP__SMTP_PORT: 587
-    AIRFLOW__SMTP__SMTP_MAIL_FROM: airflow.fyp2024@hotmail.com
+    AIRFLOW__SMTP__SMTP_MAIL_FROM: ${AIRFLOW_SMTP_USER}
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
@@ -107,31 +107,30 @@ services:
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     volumes:
-      # - postgres-db-volume:/var/lib/postgresql/data
+      - postgres-db-volume:/var/lib/postgresql/data
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    restart: always
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
       retries: 5
       start_period: 5s
-    restart: always
 
   redis:
     # Redis is limited to 7.2-bookworm due to licencing change
     # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
-    # image: redis:7.2-bookworm
     image: redis:latest
     expose:
       - 6379
+    restart: always
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 30s
       retries: 50
       start_period: 30s
-    restart: always
 
-  airflow-webserver:
+  webserver:
     <<: *airflow-common
     entrypoint: /bin/bash
     command:
@@ -170,9 +169,17 @@ services:
         if ! airflow connections get 'mlflow_conn' > /dev/null 2>&1; then
             airflow connections add 'mlflow_conn' \
                 --conn-type 'http' \
-                --conn-host 'mlflow-server' \
+                --conn-host 'mlflow' \
                 --conn-port '5000'
             echo "Created MLFlow connection"
+        fi
+        
+        if ! airflow connections get 'telegram_conn' > /dev/null 2>&1; then
+            airflow connections add 'telegram_conn' \
+                --conn-type 'http' \
+                --conn-host 'mlflow' \
+                --conn-port '5000'
+            echo "Created Telegram connection"
         fi
         
         airflow webserver
@@ -187,10 +194,10 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
+      init:
         condition: service_completed_successfully
 
-  airflow-scheduler:
+  scheduler:
     <<: *airflow-common
     command: scheduler
     healthcheck:
@@ -202,12 +209,18 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
+      init:
         condition: service_completed_successfully
 
-  airflow-worker:
+  worker:
     <<: *airflow-common
     command: celery worker
+    # scale: 2
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 2G
     healthcheck:
       # yamllint disable rule:line-length
       test:
@@ -225,10 +238,10 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
+      init:
         condition: service_completed_successfully
 
-  airflow-triggerer:
+  triggerer:
     <<: *airflow-common
     command: triggerer
     healthcheck:
@@ -240,10 +253,10 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
+      init:
         condition: service_completed_successfully
 
-  airflow-init:
+  init:
     <<: *airflow-common
     entrypoint: /bin/bash
     command:
@@ -322,7 +335,7 @@ services:
     volumes:
       - ${AIRFLOW_PROJ_DIR:-.}:/sources
 
-  airflow-cli:
+  cli:
     <<: *airflow-common
     profiles:
       - debug
@@ -335,9 +348,6 @@ services:
       - -c
       - airflow
 
-  # You can enable flower by adding "--profile flower" option e.g. docker-compose --profile flower up
-  # or by explicitly targeted on the command line e.g. docker-compose up flower.
-  # See: https://docs.docker.com/compose/profiles/
   flower:
     <<: *airflow-common
     command: celery flower
@@ -352,30 +362,31 @@ services:
     restart: always
     depends_on:
       <<: *airflow-common-depends-on
-      airflow-init:
+      init:
         condition: service_completed_successfully
         
-  mlflow-server:
+  mlflow:
     build:
       context: .
       dockerfile: Dockerfile.mlflow
     ports:
         - "8082:5000"
+        - "8000:5000"
     environment:
-        # - MLFLOW_S3_ENDPOINT_URL=s3://fyp-2024-bucket/mlflow/
-        - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-AKIA3FLD5FDBCSAAHBIQ}
-        - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-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}
+        - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+        - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    restart: always
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:5000"]
+      test: ["CMD", "curl", "--fail", "http://0.0.0.0:5000"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
     command: >
-      mlflow server --backend-store-uri postgresql+psycopg2://airflow:airflow@postgres/mlflow --default-artifact-root s3://fyp-2024-bucket/mlflow/ --host 0.0.0.0
+      mlflow server --backend-store-uri postgresql+psycopg2://airflow:airflow@postgres/mlflow --default-artifact-root s3://${S3_BUCKET}/mlflow/ --host 0.0.0.0
 
-# volumes:
-#   postgres-db-volume:
+volumes:
+  postgres-db-volume:

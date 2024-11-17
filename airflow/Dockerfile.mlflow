@@ -1,5 +1,8 @@
 FROM python:3.10-slim-buster
 
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl
+
 # Install python packages
 COPY requirements_mlflow.txt /tmp/requirements.txt
 RUN pip install -r /tmp/requirements.txt

@@ -18,7 +18,6 @@ from lib.model.property_listing import PropertyListing
 DataFrame = pd.DataFrame
 GeoDataFrame = gpd.GeoDataFrame
 
-# Global variables (consider making these part of a class instead)
 MRT_INFO: Optional[DataFrame] = None
 HAWKER_INFO: Optional[DataFrame] = None
 SUPERMARKET_INFO: Optional[DataFrame] = None
@@ -80,8 +79,6 @@ def update_coordinates(df, building_map) -> Tuple[pd.DataFrame, dict]:
                 df.loc[df["address"] == name, "longitude"] = coords[1]
 
     return df, building_map
-
-# Data transformation functions
 
 
 def simplify_lease_type(lease_type: Optional[str]) -> Optional[str]:

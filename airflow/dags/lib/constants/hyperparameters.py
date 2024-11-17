@@ -2,7 +2,7 @@ from typing import Dict, Any
 
 RANDOM_FOREST = {
     'n_estimators': list(range(200, 2001, 200)),
-    'max_features': ['auto', 'sqrt'],
+    'max_features': ['log2', 'sqrt'],
     'max_depth': list(range(10, 111, 10)) + [None],
     'min_samples_split': [2, 5, 10],
     'min_samples_leaf': [1, 2, 4],

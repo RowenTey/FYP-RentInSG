@@ -1,19 +1,38 @@
 import os
 from airflow import DAG
+from airflow.datasets import Dataset
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.providers.telegram.operators.telegram import TelegramOperator
 from airflow.operators.python import PythonOperator
 from datetime import datetime
-
 from docker.types import Mount
 
 DATE_STR = datetime.today().strftime("%Y-%m-%d")
+# FIXME: Debug why does this fail
+# DOCKER_IMAGE = "rowentey/fyp-rent-in-sg:propnex-scraper-latest"
 DOCKER_IMAGE = "rowentey/fyp-rent-in-sg:propnex-scraper-debug"
 DOCKER_TARGET_VOLUME = "propnex_data"
 DOCKER_VOLUME_DIR = "/app/pkg/rental_prices/propnex"
 S3_BUCKET = os.environ['S3_BUCKET']
 S3_KEY = f"airflow/propnex/{DATE_STR}.parquet.gzip"
+AWS_CONN_ID = "aws_conn"
+DUCKDB_CONN_ID = "duckdb_conn"
+LOCATION_INFO_TB_NAME = "plan_area_mapping"
 TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
 TELEGRAM_CHAT_ID = os.environ['TELEGRAM_CHAT_ID']
+TELEGRAM_CONN_ID = "telegram_conn"
+INSERT_TBL = "property_listing"
+CDC_TBL = "rental_price_history"
+DATASET_URI = "duckdb://fyp_rent_in_sg/property_listing/"
+
+INFOS = {
+    "mrt": ["station_name", "latitude", "longitude"],
+    "hawker_centre": ["name", "latitude", "longitude"],
+    "supermarket": ["name", "latitude", "longitude"],
+    "primary_school": ["name", "latitude", "longitude"],
+    "mall": ["name", "latitude", "longitude"]
+}
+
 
 default_args = {
     'owner': 'airflow',
@@ -21,7 +40,6 @@ default_args = {
     'start_date': datetime(2024, 7, 14),
     'email': ['kaiseong02@gmail.com'],
     'email_on_failure': True,
-    'retries': 1
 }
 
 dag = DAG(
@@ -69,18 +87,18 @@ def fetch_csv_from_volume(**kwargs):
     return csv_content
 
 
-def convert_csv_to_df(**kwargs):
+def convert_csv_to_df(upstream_task, **kwargs):
     import pandas as pd
     from io import StringIO
 
     ti = kwargs['ti']
-    csv_content = ti.xcom_pull(task_ids='fetch_csv')
+    csv_content = ti.xcom_pull(task_ids=upstream_task)
 
     df = pd.read_csv(StringIO(csv_content))
-    return df
+    return (df, len(df))
 
 
-def upload_to_s3(s3_bucket, s3_key, **kwargs):
+def upload_to_s3(upstream_task, aws_conn_id, s3_bucket, s3_key, **kwargs):
     """
     Uploads a local file to an S3 bucket.
 
@@ -113,26 +131,57 @@ def upload_to_s3(s3_bucket, s3_key, **kwargs):
     from airflow.providers.amazon.aws.operators.s3 import S3Hook
 
     ti = kwargs['ti']
-    df = ti.xcom_pull(task_ids='convert_csv_to_df')
+    df = ti.xcom_pull(task_ids=upstream_task)[0]
 
     parquet_bytes = parquet(df)
 
-    hook = S3Hook(aws_conn_id='aws_conn')
+    hook = S3Hook(aws_conn_id=aws_conn_id)
     hook.load_file_obj(parquet_bytes, s3_key, bucket_name=s3_bucket, replace=True)
 
-# def clean_and_transform(**kwargs):
-#     from lib.transformers.transform import transform
 
-#     ti = kwargs['ti']
-#     df = ti.xcom_pull(task_ids='convert_csv_to_df')
+def fetch_info(table_name, duckdb_conn_id, target_cols=None, **kwargs):
+    from duckdb_provider.hooks.duckdb_hook import DuckDBHook
+    import logging
+    print(f"Fetching info for {table_name}...")
 
-#     print(f"Got df! \n{df}\n")
-#     transform()
+    duckdb_hook = DuckDBHook.get_hook(duckdb_conn_id)
+    conn = duckdb_hook.get_conn()
 
-# # Task to push cleaned data to DuckDB as a data sink (example)
-# def push_to_duckdb(**kwargs):
-#     # Your logic to push data to DuckDB
-#     print("Pushing cleaned data to DuckDB")
+    df = conn.sql(f"SELECT * FROM {table_name};").df()
+    logging.info(df)
+
+    return df[target_cols] if target_cols else df
+
+
+def clean_and_transform(upstream_tasks: list[str], date_str: str, **kwargs,):
+    from lib.transformers.propnex import transform
+
+    ti = kwargs['ti']
+    df = ti.xcom_pull(task_ids=upstream_tasks[0])[0]
+
+    augment_data = {task_id .replace("fetch_augmented_info_", "") .replace(
+        "fetch_location_info", "plan_area_mapping"): ti.xcom_pull(task_ids=task_id) for task_id in upstream_tasks[1:]}
+
+    return transform(df, augment_data, date_str, True)
+
+
+def push_to_duckdb(
+        duckdb_conn_id: str,
+        upstream_task: str,
+        insert_tbl: str,
+        cdc_tbl: str,
+        **kwargs):
+    from duckdb_provider.hooks.duckdb_hook import DuckDBHook
+    from lib.transformers.ninetynineco import insert_df
+    from duckdb import DuckDBPyConnection
+
+    ti = kwargs["ti"]
+    df = ti.xcom_pull(task_ids=upstream_task)
+
+    duckdb_hook = DuckDBHook.get_hook(duckdb_conn_id)
+    conn: DuckDBPyConnection = duckdb_hook.get_conn()
+    insert_df(conn, df, insert_tbl, cdc_tbl)
+    conn.close()
 
 
 """
@@ -151,7 +200,6 @@ docker_task = DockerOperator(
     task_id='scrape_data',
     image=DOCKER_IMAGE,
     api_version='auto',
-    auto_remove=True,
     auto_remove=True,
     mounts=[
         Mount(source=DOCKER_TARGET_VOLUME, target=DOCKER_VOLUME_DIR, type='volume'),
@@ -179,30 +227,89 @@ fetch_csv_task = PythonOperator(
 convert_csv_task = PythonOperator(
     task_id='convert_csv_to_df',
     python_callable=convert_csv_to_df,
+    op_kwargs={'upstream_task': fetch_csv_task.task_id},
+    dag=dag,
+)
+
+send_telegram_message_task = TelegramOperator(
+    task_id="send_telegram_message",
+    telegram_conn_id=TELEGRAM_CONN_ID,
+    chat_id=TELEGRAM_CHAT_ID,
+    text="Propnex scraper scraped {{ ti.xcom_pull(task_ids='convert_csv_to_df')[1] }} today.",
     dag=dag,
 )
 
 upload_to_s3_task = PythonOperator(
     task_id='upload_to_s3',
     python_callable=upload_to_s3,
-    op_kwargs={'s3_bucket': S3_BUCKET, 's3_key': S3_KEY},
+    op_kwargs={
+        'upstream_task': convert_csv_task.task_id,
+        'aws_conn_id': AWS_CONN_ID,
+        's3_bucket': S3_BUCKET,
+        's3_key': S3_KEY
+    },
     dag=dag,
 )
 
-# clean_and_transform_task = PythonOperator(
-#     task_id='clean_and_transform',
-#     python_callable=clean_and_transform,
-#     dag=dag,
-# )
+fetch_augmented_info_task = []
+for info_name in INFOS:
+    fetch_augmented_info_task.append(
+        PythonOperator(
+            task_id=f"fetch_augmented_info_{info_name}",
+            python_callable=fetch_info,
+            op_kwargs={
+                "table_name": f"{info_name}_info",
+                "duckdb_conn_id": DUCKDB_CONN_ID,
+                "target_cols": INFOS[info_name],
+            },
+            dag=dag,
+        )
+    )
 
-# push_to_duckdb_task = PythonOperator(
-#     task_id='push_to_duckdb',
-#     python_callable=push_to_duckdb,
-#     dag=dag,
-# )
+fetch_augmented_info_task.append(
+    PythonOperator(
+        task_id="fetch_location_info",
+        python_callable=fetch_info,
+        op_kwargs={
+            "table_name": LOCATION_INFO_TB_NAME,
+            "duckdb_conn_id": DUCKDB_CONN_ID,
+        },
+        dag=dag,
+    )
+)
+
+clean_and_transform_task = PythonOperator(
+    task_id='clean_and_transform',
+    python_callable=clean_and_transform,
+    op_kwargs={
+        "upstream_tasks": ["convert_csv_to_df", "fetch_location_info"] + [f"fetch_augmented_info_{info_name}" for info_name in INFOS],
+        "date_str": DATE_STR
+    },
+    dag=dag,
+)
+
+push_to_duckdb_task = PythonOperator(
+    task_id="push_to_duckdb",
+    python_callable=push_to_duckdb,
+    op_kwargs={
+        "duckdb_conn_id": DUCKDB_CONN_ID,
+        "upstream_task": clean_and_transform_task.task_id,
+        "insert_tbl": INSERT_TBL,
+        "cdc_tbl": CDC_TBL
+    },
+    outlets=[Dataset(DATASET_URI)],
+    dag=dag,
+)
 
 docker_task >> fetch_csv_task
+docker_task >> fetch_augmented_info_task
+
 fetch_csv_task >> convert_csv_task
+
+fetch_augmented_info_task >> clean_and_transform_task
+
+convert_csv_task >> send_telegram_message_task
+convert_csv_task >> clean_and_transform_task
 convert_csv_task >> upload_to_s3_task
-# convert_csv_task >> [upload_to_s3_task, clean_and_transform_task]
-# clean_and_transform_task >> push_to_duckdb_task
+
+clean_and_transform_task >> push_to_duckdb_task

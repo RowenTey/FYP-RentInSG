@@ -8,14 +8,13 @@ from typing import Tuple, Optional, Dict, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from lib.constants.db_constants import *
 from lib.constants.location_constants import *
-from lib.utils.coordinates import fetch_coordinates, find_nearest, get_district
+from lib.utils.coordinates import fetch_coordinates, find_nearest
 from lib.utils.motherduckdb import MotherDuckDBConnector
 from lib.model.property_listing import PropertyListing
 
 # Type definitions
 DataFrame = pd.DataFrame
 
-# Global variables (consider making these part of a class instead)
 MRT_INFO: Optional[DataFrame] = None
 HAWKER_INFO: Optional[DataFrame] = None
 SUPERMARKET_INFO: Optional[DataFrame] = None
@@ -152,6 +151,7 @@ def get_building_map(df: DataFrame) -> Dict[str, Tuple[float, float]]:
 def transform_categorical_values(df: DataFrame) -> DataFrame:
     logging.info("Transforming categorical values...")
     try:
+        df["listing_id"] = df["listing_id"].astype(str)
         df['property_type'] = df['property_type'].astype('category')
         df['furnishing'] = df['furnishing'].fillna('Unfurnished').astype('category')
         df['tenure'] = df['tenure'].apply(simplify_lease_type).astype('category')
@@ -172,8 +172,8 @@ def transform_numerical_values(df: DataFrame) -> DataFrame:
         # assume each room / unit has at least 1 toilet
         df["bathroom"] = df["bathroom"].apply(extract_num).fillna("1").astype(int)
         df["dimensions"] = df["dimensions"].astype(int)
-        df["built_year"] = df["built_year"].astype(int)
-        df["price/sqft"] = df["price/sqft"].astype(float)
+        df["built_year"] = df["built_year"].fillna(9999).astype(int)
+        df["price/sqft"] = df["price/sqft"].apply(extract_num).str.replace(",", "").astype(int)
     except TypeError as e:
         logging.error(f"Error in numerical values transformation: {e}")
         raise e
@@ -181,10 +181,13 @@ def transform_numerical_values(df: DataFrame) -> DataFrame:
 
 
 def get_listing_type(url):
+    import time
+    import random
     import requests
     from bs4 import BeautifulSoup
 
     logging.info("Extracting listing type...")
+    time.sleep(random.randint(1, 10))
     res = requests.get(url)
     soup = BeautifulSoup(res.content, 'html.parser')
     prop_list_box = soup.find_all("div", class_="property-list-box")
@@ -220,6 +223,7 @@ def process_dataframe(df: DataFrame, augment_data: dict[str, DataFrame], date: s
     df["building_name"] = df["property_name"]
     logging.info(f"Unique building names: {len(df['building_name'].unique())}")
 
+    building_map = get_building_map(df)
     df, building_map = update_coordinates(df, building_map)
 
     df["district_id"] = df["district"].map(REVERSE_DISTRICTS)
@@ -254,7 +258,9 @@ def transform(df: DataFrame, augment_data: dict[str, DataFrame], date: str, debu
     if debug:
         print_all_columns(df)
 
+    # Drop duplicates
     logging.info(f"Length of duplicates: {len(df[df.duplicated(subset='listing_id', keep=False)])}")
+    df.drop_duplicates(subset="listing_id", keep="first", inplace=True)
 
     df = process_dataframe(df, augment_data, date)
     df = validate_dataframe(df)
@@ -263,59 +269,3 @@ def transform(df: DataFrame, augment_data: dict[str, DataFrame], date: str, debu
         print_all_columns(df)
 
     return df
-
-
-def change_data_capture(
-        db: MotherDuckDBConnector,
-        df: DataFrame,
-        insert_tbl: str,
-        cdc_tbl: str,
-        debug: bool = False) -> None:
-    logging.info("Calculating change data capture...")
-    changed = df[(df["fingerprint"] != df["fingerprint_old"]) & (df["_merge"] == "both")][
-        ["listing_id", "fingerprint", "scraped_on", "fingerprint_old", "last_updated_old", "_merge"]
-    ]
-    logging.info(f"Changed: \n{changed}\n")
-
-    cdc = changed[["listing_id", "fingerprint", "last_updated_old"]]
-    cdc["price"] = cdc["fingerprint"].apply(lambda x: int(x.split("-")[1]))
-    cdc.rename(columns={"last_updated_old": "timestamp"}, inplace=True)
-    cdc = cdc[RENTAL_PRICE_HISTORY_COLS]
-    logging.info(f"CDC: \n{cdc}\n")
-
-    changed = changed[["listing_id", "fingerprint", "scraped_on"]]
-    changed["price"] = changed["fingerprint"].apply(lambda x: int(x.split("-")[1]))
-    changed.rename(columns={"scraped_on": "last_updated"}, inplace=True)
-    logging.info(f"Changed: \n{changed}\n")
-
-    if not cdc.empty and not debug:
-        db.insert_df(cdc_tbl, cdc)
-
-    COLS_TO_UPDATE = ["price", "fingerprint", "last_updated"]
-    if not changed.empty and not debug:
-        db.update_table(insert_tbl, "listing_id", COLS_TO_UPDATE, changed)
-
-
-def insert_df(db_conn: DuckDBPyConnection, df: DataFrame, insert_tbl: str, cdc_tbl: str, debug: bool = False) -> None:
-    logging.info("Inserting dataframe...")
-    db = MotherDuckDBConnector(db_conn)
-    try:
-        db.begin_transaction()
-
-        existing = db.query_df(f"SELECT listing_id, fingerprint, last_updated FROM {insert_tbl}")
-        df = df.merge(existing, on="listing_id", how="left", indicator=True, suffixes=("", "_old"))
-
-        change_data_capture(db, df, insert_tbl, cdc_tbl, debug)
-
-        new = df[df["_merge"] == "left_only"][PROPERTY_LISTING_COLS]
-        logging.info(f"New: \n{new}\n")
-
-        if not new.empty and not debug:
-            db.insert_df(insert_tbl, new)
-
-        db.commit_transaction()
-        logging.info("Successfully inserted dataframe!")
-    except Exception as e:
-        db.rollback_transaction()
-        logging.error(f"Error in insert_df: {e}")
-        raise e

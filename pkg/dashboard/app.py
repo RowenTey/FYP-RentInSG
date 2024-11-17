@@ -52,6 +52,8 @@ def fetch_listings_df():
             # Read the CSV content into a DataFrame
             csv_content = io.StringIO(response.text)
             listings_df = pd.read_csv(csv_content)
+            if listings_df.empty:
+                raise ValueError("No data fetched")
 
             listings_df = remove_outliers(listings_df, "price")
 
