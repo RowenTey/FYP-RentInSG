@@ -95,7 +95,7 @@ def convert_csv_to_parquet_and_upload(
     """
     df = pd.read_csv(csv_file_path)
     parquet_bytes = parquet(df)
-    parquet_bytes.seek(0) # Reset the buffer position to the start
+    parquet_bytes.seek(0)  # Reset the buffer position to the start
     s3_client.upload_fileobj(parquet_bytes, bucket_name, s3_file_path)
     print(
         f"File uploaded: {csv_file_path} to s3://{bucket_name}/{s3_file_path}")

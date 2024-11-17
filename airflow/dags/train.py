@@ -100,10 +100,10 @@ def clean_data(upstream_task: str, **kwargs):
     df["tenure"] = df["tenure"].fillna(df["tenure"].mode()[0])
     df["property_type"] = df["property_type"].replace("Cluster HouseWhole Unit", "Cluster House")
     df["property_type"] = df["property_type"].fillna(df['property_type'].mode()[0])
-    
+
     valid_built_years = df[df["built_year"] != 9999]["built_year"]
     df["built_year"] = df["built_year"].replace(9999, valid_built_years.median())
-    
+
     df["distance_to_mrt_in_m"] = df["distance_to_mrt_in_m"].replace(np.inf, df["distance_to_mrt_in_m"].median())
     df["has_pool"] = df["has_pool"].replace(pd.NA, False)
     df["has_gym"] = df["has_gym"].replace(pd.NA, False)
@@ -231,7 +231,13 @@ def prepare_data(upstream_task: str, **kwargs):
     return (train_df, val_df, test_df)
 
 
-def train_and_evaluate_model(experiment_id: str, model_class: any, model_name: str, mlflow_tracking_uri: str, train_data: DataFrame, val_data: DataFrame):
+def train_and_evaluate_model(
+        experiment_id: str,
+        model_class: any,
+        model_name: str,
+        mlflow_tracking_uri: str,
+        train_data: DataFrame,
+        val_data: DataFrame):
     import gc
     import mlflow
     import numpy as np
@@ -442,21 +448,21 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
     from sklearn.metrics import mean_absolute_error, mean_squared_error, explained_variance_score, r2_score
     from sklearn.preprocessing import StandardScaler, OneHotEncoder
     from sklearn.compose import ColumnTransformer
-    
+
     ti = kwargs['ti']
     data = ti.xcom_pull(task_ids=upstream_task[0])
     experiment_id = ti.xcom_pull(task_ids=upstream_task[1])
     model_name = ti.xcom_pull(task_ids=upstream_task[2])[0]
 
     train_data, val_data, test_data = data
-    
+
     X_train = train_data.drop('price', axis=1)
     y_train = train_data['price']
     X_val = val_data.drop('price', axis=1)
     y_val = val_data['price']
     X_test = test_data.drop('price', axis=1)
     y_test = test_data['price']
-    
+
     models = {
         "decision_tree": DecisionTreeRegressor,
         "random_forest": RandomForestRegressor,
@@ -486,10 +492,10 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
         ],
         remainder="passthrough"
     )
-    
+
     X_train = column_transformer.fit_transform(X_train)
     X_val = column_transformer.transform(X_val)
-    X_test = column_transformer.transform(X_test)    
+    X_test = column_transformer.transform(X_test)
 
     run_id = None
     run_summary = ""
@@ -527,7 +533,7 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
         
         # Infer signature for model logging
         signature = mlflow.models.infer_signature(X_val, y_pred)
-        
+
         mae = mean_absolute_error(y_val, y_pred).round(2)
         rmse = sqrt(mean_squared_error(y_val, y_pred)).round(2)
         evs = explained_variance_score(y_val, y_pred).round(2)

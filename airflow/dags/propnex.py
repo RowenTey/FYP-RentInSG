@@ -203,6 +203,7 @@ docker_task = DockerOperator(
     ],
     # Specify the Docker daemon socket
     docker_url='unix://var/run/docker.sock',
+    docker_url='unix://var/run/docker.sock',
     retrieve_output=True,
     tty=True,
     force_pull=True,

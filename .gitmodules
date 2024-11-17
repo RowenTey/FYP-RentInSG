@@ -1,3 +1,0 @@
-[submodule "superset"]
-    path = superset
-    url = https://github.com/apache/superset

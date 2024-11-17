@@ -31,9 +31,18 @@ secrets/
 # Ignore venv
 venv/
 ml_venv/
+st_venv/
+server_venv/
 
 # Ignore rental prices
 rental_prices/
 
 # Ignore server logs
 logs/
+
+# Ignore k8s secrets except the template
+*secrets*.yaml
+!secrets.template.yaml
+
+# Ignore training data
+*training*.csv

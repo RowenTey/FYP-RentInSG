@@ -164,6 +164,9 @@ class AbstractPropertyScraper(ABC):
                 self.html_content = scraper.get(url).text
                 logging.info("=" * 75)
 
+                with open("test.html", "w", encoding="utf-8") as f:
+                    f.write(self.html_content)
+
                 soup = BeautifulSoup(self.html_content, "html.parser")
 
                 if "captcha" in soup.text:
