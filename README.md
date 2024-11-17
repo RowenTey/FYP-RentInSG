@@ -13,4 +13,4 @@ A fully automated rental price analysis platform for Singapore, facilitating dat
 - AWS S3
 - DuckDB
 
-> This repository contains the code submitted for NTU's Final Year Project
+> This repository contains code submitted for NTU's Final Year Project
