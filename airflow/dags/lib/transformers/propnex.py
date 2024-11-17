@@ -185,7 +185,7 @@ def get_listing_type(url):
     import random
     import requests
     from bs4 import BeautifulSoup
-    
+
     logging.info("Extracting listing type...")
     time.sleep(random.randint(1, 10))
     res = requests.get(url)
@@ -222,7 +222,7 @@ def validate_dataframe(df: DataFrame) -> DataFrame:
 def process_dataframe(df: DataFrame, augment_data: dict[str, DataFrame], date: str) -> DataFrame:
     df["building_name"] = df["property_name"]
     logging.info(f"Unique building names: {len(df['building_name'].unique())}")
-    
+
     building_map = get_building_map(df)
     df, building_map = update_coordinates(df, building_map)
 
@@ -269,4 +269,3 @@ def transform(df: DataFrame, augment_data: dict[str, DataFrame], date: str, debu
         print_all_columns(df)
 
     return df
-

@@ -32,26 +32,26 @@ def list_models():
     # List all registered models
     for rm in client.search_registered_models():
         pprint(dict(rm), indent=4)
-        
-        
+
+
 def get_latest_model_version():
     from mlflow.tracking import MlflowClient
     client = MlflowClient(tracking_uri=MLFLOW_TRACKING_URI)
     # -1 because models are sorted by version in descending order
     latest_version = dict(client.get_latest_versions(REGISTERED_MODEL_NAME)[-1])
     return latest_version
-        
+
 
 def load_model_from_registry(upstream_task, **kwargs):
     import mlflow
-    
+
     # Load the model from MLflow Model Registry
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-    
+
     ti = kwargs['ti']
     version_info = ti.xcom_pull(task_ids=upstream_task)
     print(version_info)
-    
+
     model = mlflow.pyfunc.load_model(f"{version_info['source']}")
     return model
 

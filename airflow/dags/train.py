@@ -295,9 +295,9 @@ def train_and_evaluate_model(
         mlflow.log_metric("r2_score", r2)
 
         run_id = run.info.run_id
-        
+
         gc.collect()
- 
+
     return (mae, rmse, r2, run_id)
 
 
@@ -344,8 +344,8 @@ def train_models(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
             best_r2 = r2
             best_run = run_id
             best_model = model_name
-    
-    run_summary =  "".join(
+
+    run_summary = "".join(
         "Best regression model for property listing price prediction is "
         f"{best_model} with accuracy of {best_r2}."
     )
@@ -411,21 +411,21 @@ def create_objective(model_name: str, best_model: any, X_train, y_train):
                 "n_estimators": trial.suggest_categorical("n_estimators", [50, 100, 200, 500]),
                 "min_child_samples": trial.suggest_int("min_child_samples", 5, 50, step=5)
             }
-            
+
         model = best_model(**params)
         scores = cross_val_score(model, X_train, y_train, cv=5, scoring='neg_mean_squared_error')
-    
+
         # Convert scores to positive RMSE values
         rmse_scores = [sqrt(-score) for score in scores]
         print(f"Scores: {rmse_scores}")
         avg_rmse = mean(rmse_scores)
-        
+
         # Clean up
         gc.collect()
-        
+
         return avg_rmse
-        
-    return objective     
+
+    return objective
 
 
 def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
@@ -500,21 +500,25 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
     run_id = None
     run_summary = ""
     best_model = models[model_name]
-    
+
     storage_url = "postgresql://airflow:airflow@postgres/optuna"
-    
+
     # Start the MLflow run
     mlflow.set_tracking_uri(mlflow_tracking_uri)
     with mlflow.start_run(
         experiment_id=experiment_id,
         run_name="hyperparameter_tuning"
-    ) as run:        
+    ) as run:
         # Create an Optuna study
-        study = optuna.create_study(direction="minimize", sampler=TPESampler(), load_if_exists=True, storage=storage_url)
-        
+        study = optuna.create_study(
+            direction="minimize",
+            sampler=TPESampler(),
+            load_if_exists=True,
+            storage=storage_url)
+
         # Create the objective function with the specified model_name and best_model
         objective = create_objective(model_name, best_model, X_train, y_train)
-        
+
         # Optimize the study
         # study.optimize(objective, n_trials=15, n_jobs=1, gc_after_trial=True)
         study.optimize(objective, n_trials=1, n_jobs=1, gc_after_trial=True)
@@ -523,14 +527,14 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
         best_params = study.best_params
         print(f"Best hyperparameters: {best_params}")
         print(f"Best value: {study.best_value}")
-        
+
         # Train the model with the best hyperparameters
         best_model_instance = best_model(**best_params)
         best_model_instance.fit(X_train, y_train)
-        
+
         # Predict on the validation set
         y_pred = best_model_instance.predict(X_val)
-        
+
         # Infer signature for model logging
         signature = mlflow.models.infer_signature(X_val, y_pred)
 
@@ -538,36 +542,36 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
         rmse = sqrt(mean_squared_error(y_val, y_pred)).round(2)
         evs = explained_variance_score(y_val, y_pred).round(2)
         r2 = r2_score(y_val, y_pred).round(2)
-        
+
         # Log the results
         mlflow.log_params(study.best_params)
-        
+
         mlflow.log_metric('ht_val_mae', mae)
         mlflow.log_metric('ht_val_rmse', rmse)
         mlflow.log_metric('ht_val_explained_variance_score', evs)
         mlflow.log_metric('ht_val_r2_score', r2)
-        
+
         y_pred = best_model_instance.predict(X_test)
-        
+
         mae = mean_absolute_error(y_test, y_pred).round(2)
         rmse = sqrt(mean_squared_error(y_test, y_pred)).round(2)
         evs = explained_variance_score(y_test, y_pred).round(2)
         r2 = r2_score(y_test, y_pred).round(2)
-        
+
         mlflow.log_metric('ht_test_mae', mae)
         mlflow.log_metric('ht_test_rmse', rmse)
         mlflow.log_metric('ht_test_explained_variance_score', evs)
         mlflow.log_metric('ht_test_r2_score', r2)
-        
+
         run_summary = f"Model {model_name} was tuned to an accuracy of {r2}."
         logging.info(run_summary)
-        
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir, "column_transformer.pkl")
             path.write_bytes(pickle.dumps(column_transformer))
             mlflow.log_artifact(local_path=path.absolute(), artifact_path="column_transformer")
             logging.info(f"Logged artifact: {path.absolute()}")
-        
+
         if model_name == 'xgboost':
             mlflow.xgboost.log_model(best_model_instance, artifact_path="model", signature=signature)
         elif model_name == 'lightgbm':
@@ -578,7 +582,7 @@ def tune_model(upstream_task: list[str], mlflow_tracking_uri: str, **kwargs):
             mlflow.sklearn.log_model(best_model_instance, artifact_path="model", signature=signature)
 
         run_id = run.info.run_id
-        
+
     return (run_id, run_summary, model_name, r2)
 
 
@@ -726,13 +730,13 @@ create_model_version_task = CreateModelVersionOperator(
     run_id="{{ ti.xcom_pull(task_ids='tune_model')[0] }}",
     description="{{ ti.xcom_pull(task_ids='tune_model')[1] }}",
     tags=[
-        {"key": "model_name", "value": "{{ ti.xcom_pull(task_ids='tune_model')[2] }}"}, 
+        {"key": "model_name", "value": "{{ ti.xcom_pull(task_ids='tune_model')[2] }}"},
         {"key": "r2_score", "value": "{{ ti.xcom_pull(task_ids='tune_model')[3] }}"},
         {
-            "key": "column_transformer_source", 
-            "value": 
-                f"s3://{ARTIFACT_BUCKET}/mlflow/{EXPERIMENT_NAME}/" + 
-                "{{ ti.xcom_pull(task_ids='tune_model')[0] }}" + 
+            "key": "column_transformer_source",
+            "value":
+                f"s3://{ARTIFACT_BUCKET}/mlflow/{EXPERIMENT_NAME}/" +
+                "{{ ti.xcom_pull(task_ids='tune_model')[0] }}" +
                 "/artifacts/column_transformer/column_transformer.pkl"
         },
     ],

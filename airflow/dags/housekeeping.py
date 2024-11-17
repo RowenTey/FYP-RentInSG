@@ -14,17 +14,17 @@ default_args = {
 dag = DAG(
     'housekeeping',
     default_args=default_args,
-    catchup=False, 
+    catchup=False,
     description='A DAG to perform housekeeping on the scraper data',
-    schedule_interval='0 8 * * 1',  
-) 
+    schedule_interval='0 8 * * 1',
+)
 
 
 def housekeeping(volumes, **kwargs):
     from docker import from_env
 
     client = from_env()
-    
+
     for v in volumes:
         list_command = 'ls -l /app'
         list_container = client.containers.run(
@@ -35,7 +35,7 @@ def housekeeping(volumes, **kwargs):
         )
         print(f"Contents of the volume {v} before housekeeping:\n")
         print(list_container.decode('utf-8'))
-        
+
         probe_for_files_command = 'find /app -type f -mtime +10'
         probe_container = client.containers.run(
             'alpine',
@@ -47,7 +47,7 @@ def housekeeping(volumes, **kwargs):
         print(probe_container.decode('utf-8'))
 
         # Perform the cleanup
-        cleanup_command = 'find /app -type f -mtime +10 -exec rm -f {} \;'
+        cleanup_command = 'find /app -type f -mtime +10 -exec rm -f {} \\;'
         cleanup_container = client.containers.run(
             'alpine',
             cleanup_command,
@@ -56,8 +56,9 @@ def housekeeping(volumes, **kwargs):
         )
         print("Files deleted:\n")
         print(cleanup_container.decode('utf-8'))
-        
+
         print("Done for " + v)
+
 
 housekeeping_task = PythonOperator(
     task_id='housekeeping',

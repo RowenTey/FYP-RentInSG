@@ -23,12 +23,13 @@ DUCKDB_TABLE_NAME = "supermarket_info"
 def query_duckdb(my_table, conn_id, **kwargs):
     from duckdb_provider.hooks.duckdb_hook import DuckDBHook
     import duckdb
-    
+
     my_duck_hook = DuckDBHook.get_hook(conn_id)
     conn = my_duck_hook.get_conn()
 
     r = conn.execute(f"SELECT * FROM {my_table};").fetchall()
     print(r)
+
 
 query_task = PythonOperator(
     task_id='query_duckdb',
