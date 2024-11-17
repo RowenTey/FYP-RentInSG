@@ -1,5 +1,5 @@
 # FYP - RentInSG 🎓
-A fully automated rental price analysis platform for Singapore, facilitating data-driven decisions when surveying rental properties.
+> A fully automated rental price analysis platform for Singapore, facilitating data-driven decisions when surveying rental properties 🏘️
 
 ## Technology
 - Airflow
